@@ -68,17 +68,14 @@ hr { border-color: var(--border) !important; margin: var(--space-2) 0 !important
 .landing-hero { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: clamp(32px, 7vh, 80px) var(--space-3) var(--space-3); margin: 0 auto var(--space-3); max-width: 860px; }
 .arcade-logo { display: block; width: min(100%, 640px); height: auto; filter: drop-shadow(0 8px 12px #09051655); }
 .header-logo { width: 160px; max-width: 100%; margin: 0; filter: drop-shadow(0 3px 4px #09051655); }
-/* Keep the logo as an actual image, with a keyboard-accessible hit area above it. */
-.st-key-home_brand { position: relative; width: 160px !important; max-width: 100%; }
-.st-key-home_brand [data-testid="stVerticalBlock"] { gap: 0; }
-.st-key-go_home { position: absolute; inset: 0; z-index: 1; width: 100%; height: 100%; }
+/* The image is the native button label, so its visible area is also clickable. */
 .st-key-go_home button {
-  width: 100% !important; height: 100%; min-height: 0; padding: 0 !important;
+  width: 160px; max-width: 100%; height: 80px; min-height: 0; padding: 0 !important;
   background: transparent !important;
   border: 0 !important; border-radius: 4px; box-shadow: none !important; cursor: pointer;
 }
-.st-key-home_brand:hover .header-logo { filter: brightness(1.12); }
-.st-key-go_home button p { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.st-key-go_home button p { margin: 0; line-height: 0; }
+.st-key-go_home button img { display: block; width: 160px; height: 80px; max-height: none !important; max-width: 100%; object-fit: contain; }
 .landing-tagline { font-size: 1.1rem; font-weight: 500; letter-spacing: .04em; color: #e4d7f6; margin-top: var(--space-6); }
 .season-track { height: 6px; background: #ffffff14; border-radius: 8px; overflow: hidden; margin: 0 0 var(--space-2); }
 .season-fill { height: 100%; background: var(--accent); border-radius: 8px; }
@@ -139,7 +136,7 @@ hr { border-color: var(--border) !important; margin: var(--space-2) 0 !important
   .block-container { padding: var(--space-4) var(--space-4) var(--space-8); }
   [data-testid="stHorizontalBlock"] { gap: var(--space-4); }
   .header-logo { width: 128px; } .landing-hero { padding-top: var(--space-8); }
-  .st-key-home_brand { width: 128px !important; }
+  .st-key-go_home button, .st-key-go_home button img { width: 128px; height: 64px; }
   .match-card { padding: var(--space-4) var(--space-3); }
   .match-team { font-size: .95rem; } .match-score { height: 86px; padding-top: 18px; font-size: 1.8rem; }
   .probability-grid { gap: var(--space-2); }

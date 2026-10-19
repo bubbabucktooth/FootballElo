@@ -289,7 +289,7 @@ class InterfaceTests(unittest.TestCase):
         self.assertIn('Spela nu', [b.label for b in app.button])
         next(b for b in app.button if b.label == 'Spela nu').click().run()
         self.assertFalse(app.exception)
-        self.assertTrue(any('<img class="arcade-logo header-logo"' in m.value for m in app.markdown))
+        self.assertTrue(next(b for b in app.button if b.key == 'go_home').label.startswith('![Till startsidan](data:image/png;base64,'))
         app.radio[0].set_value('Säsong').run()
         next(b for b in app.button if b.label == 'Starta säsong').click().run()
         self.assertFalse(app.exception)

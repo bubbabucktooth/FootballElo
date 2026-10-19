@@ -34,11 +34,9 @@ def csv_load(name):
 brand,about=st.columns([3,1],gap='large',vertical_alignment='center')
 with brand:
     if st.session_state.get('app_started', False):
-        with st.container(key='home_brand'):
-            st.markdown(arcade_logo(compact=True), unsafe_allow_html=True)
-            if st.button('Till startsidan', key='go_home', width=160):
-                st.session_state.app_started = False
-                st.rerun()
+        if st.button(f'![Till startsidan]({logo_data_uri()})', key='go_home', width=160):
+            st.session_state.app_started = False
+            st.rerun()
 with about:
     with st.expander('Om appen'), st.container(key='about_copy'):
         st.markdown('''# BEAT THE MODEL
