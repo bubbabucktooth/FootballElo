@@ -1007,11 +1007,15 @@ else:
                             f"{last['home']} {last['hg']} – {last['ag']} {last['away']}")
             if s['history']:
                 results=pd.DataFrame(s['history'][::-1])
+                # The history contains internal probability data for persistence;
+                # present match information rather than raw model dictionaries.
+                results = results[['Date', 'HomeTeam', 'AwayTeam', 'Score']].rename(columns={
+                    'Date': 'Datum', 'HomeTeam': 'Hemma', 'AwayTeam': 'Borta', 'Score': 'Resultat'})
                 with st.expander('Övriga ligan · resultat och datum'):
-                    render_table(results.loc[~(results.HomeTeam.eq(s['team']) | results.AwayTeam.eq(s['team']))],
+                    render_table(results.loc[~(results.Hemma.eq(s['team']) | results.Borta.eq(s['team']))],
                                  'other_season_results')
                 with st.expander('Dina matcher · hela säsongen'):
-                    render_table(results.loc[results.HomeTeam.eq(s['team']) | results.AwayTeam.eq(s['team'])],
+                    render_table(results.loc[results.Hemma.eq(s['team']) | results.Borta.eq(s['team'])],
                                  'own_season_results')
             with st.expander('Säsongsinställningar'):
                 st.caption('En omstart tar bort den pågående säsongens resultat.')

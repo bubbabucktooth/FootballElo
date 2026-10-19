@@ -29,8 +29,10 @@ def render_table(frame, key, selected=None, formats=None):
         for name, value in record.items():
             text = '–' if pd.isna(value) else formats[name].format(value) if name in formats else str(value)
             cells.append(f'<td>{escape(text)}</td>')
-        own = 'own-team' if record.get('Lag') == selected else ''
+        own = 'own-team' if selected is not None and record.get('Lag') == selected else ''
         rows.append(f'<tr class="{own}">' + ''.join(cells) + '</tr>')
-    st.markdown('<div class="league-wrap statistics-table-wrap"><table class="league-table statistics-table">'
+    minimum_width = max(380, len(frame.columns) * 100)
+    st.markdown('<div class="league-wrap statistics-table-wrap">'
+                f'<table class="league-table statistics-table" style="min-width:{minimum_width}px">'
                 '<thead><tr>' + headers + '</tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div>',
                 unsafe_allow_html=True)

@@ -3,7 +3,7 @@ import io
 import json
 from pathlib import Path
 import unittest
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 from urllib.error import HTTPError
 
 import pandas as pd
@@ -12,6 +12,7 @@ from streamlit.testing.v1 import AppTest
 from statistics_store import (StatisticsError, SupabaseStore, kick_event, final_rows,
                               season_payload, sync_season, flush_kicks, new_run_id, probabilities)
 from statistics_page import season_overview_charts
+from ui_tables import render_table
 
 ROOT = Path(__file__).parent
 
@@ -66,6 +67,17 @@ class MemoryStore:
 
 
 class PersistenceTests(unittest.TestCase):
+    def test_table_highlight_requires_an_explicit_selected_team(self):
+        with patch('ui_tables.st') as ui:
+            ui.columns.return_value = (MagicMock(), MagicMock())
+            ui.selectbox.return_value = 'Hemma'
+            ui.segmented_control.return_value = 'Stigande'
+            render_table(pd.DataFrame([{'Hemma': 'Arsenal', 'Borta': 'Chelsea'}]), 'history')
+            self.assertNotIn('class="own-team"', ui.markdown.call_args.args[0])
+            ui.selectbox.return_value = 'Lag'
+            render_table(pd.DataFrame([{'Lag': 'Arsenal'}, {'Lag': 'Chelsea'}]), 'teams', 'Arsenal')
+            self.assertEqual(ui.markdown.call_args.args[0].count('class="own-team"'), 1)
+
     def test_season_charts_values_schema_and_empty_state(self):
         rows = [dict(Lag=team, Säsonger=4, Seriesegrar=titles,
                      Poängsnitt=points, **{'Verkliga poäng': 60, 'Δ poängsnitt': points-60})

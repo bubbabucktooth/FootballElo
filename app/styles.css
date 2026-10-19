@@ -215,6 +215,7 @@ hr { border-color: var(--border) !important; margin: var(--space-2) 0 !important
 .statistics-table { table-layout: auto; min-width: 760px; }
 .statistics-table th { white-space: nowrap; word-break: normal; overflow-wrap: normal; min-width: 90px; }
 .statistics-table th, .statistics-table td { padding: 9px 8px; }
+.statistics-table td { white-space: nowrap; overflow-wrap: normal; word-break: normal; }
 .statistics-table th:first-child, .statistics-table td:first-child { text-align: left; min-width: 150px; }
 .statistics-table th:nth-child(2), .statistics-table td:nth-child(2) { text-align: center; }
 .statistics-table tbody tr:nth-child(4) td, .statistics-table tbody tr:nth-child(18) td { border-color: #ffffff0b; }
