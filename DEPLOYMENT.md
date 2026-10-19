@@ -8,6 +8,8 @@ behåller projektets nuvarande mappstruktur.
 ```text
 app/
   app.py
+  statistics_store.py
+  statistics_page.py
   styles.css
   requirements.txt
   model.joblib
@@ -20,9 +22,15 @@ app/
     beat-the-model-arcade.png
 ```
 
-`app/test_app.py` kan följa med för tester. Appen behöver inte `Data/`,
+`app/test_app.py` och `app/test_statistics.py` kan följa med för tester. Appen behöver inte `Data/`,
 `Notebooks/`, lokala Pythonmiljöer eller förhandsvisningsbilder.
 Inga API-nycklar behövs för appen.
+
+För den valfria gemensamma statistiken finns instruktioner i
+`SHARED_STATISTICS.md`, databasdefinitionen i `app/sql/001_shared_statistics.sql`
+och en secrets-mall i `.streamlit/secrets.toml.example`. Utan dessa secrets
+fungerar spelet, men gemensam statistik samlas inte. Ingen ny Pythondependency
+behövs för databasen; appservern använder Supabases REST-API.
 
 ## Lokal installation och verifiering
 
@@ -31,7 +39,7 @@ Använd **Python 3.12** och kör från projektets rot i PowerShell:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r app/requirements.txt
-.\.venv\Scripts\python.exe -m unittest discover -s app -p test_app.py
+.\.venv\Scripts\python.exe -m unittest discover -s app -p "test_*.py"
 .\.venv\Scripts\python.exe -m streamlit run app/app.py
 ```
 
@@ -42,7 +50,7 @@ sparades med. Modellfilen ska följa med; modellen tränas inte vid deployment.
 ### Verifierat lokalt
 
 En separat miljö i `.venv` har installerats från `app/requirements.txt` med
-Python 3.12.15. Alla 14 tester passerade utan scikit-learns versionsvarning.
+Python 3.12.15. Alla 24 tester passerade utan scikit-learns versionsvarning.
 Streamlit-servern startade och svarade med HTTP 200 på startsidan samt `ok`
 på `/_stcore/health`. Detta är verifiering på Windows; molnbygget och den
 visuella kontrollen efter publicering återstår.
@@ -77,6 +85,7 @@ https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deplo
 - Starta ny säsong återgår till lagvalet efter säsongsslut.
 - Faktisk tabell och poängdifferenser följer samma speldatum.
 - Avslutad säsong visar jämförelsen med verkligheten.
+- Sidan Statistik fungerar utan databas; med anslutning registreras resultat en gång.
 - Kontrollera layouten på dator och mobil.
 
 Spelresultat finns bara i den aktuella Streamlit-sessionen. En ny session,
@@ -93,7 +102,7 @@ för fortsatt arbete. `Data/` och `Notebooks/` ligger kvar lokalt och ignoreras 
 Kör från projektroten innan en uppdatering publiceras:
 
 ```powershell
-.\.venv\Scripts\python.exe -m unittest discover -s app -p test_app.py
+.\.venv\Scripts\python.exe -m unittest discover -s app -p "test_*.py"
 git status
 git diff
 git add app .gitignore DEPLOYMENT.md

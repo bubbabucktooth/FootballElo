@@ -2,10 +2,14 @@
 from pathlib import Path
 from html import escape
 from base64 import b64encode
+import time
 import joblib
 import numpy as np
 import pandas as pd
 import streamlit as st
+from statistics_store import (SupabaseStore, StatisticsError, model_version, new_run_id,
+                              kick_event, sync_season, flush_kicks)
+from statistics_page import render_statistics
 
 ROOT = Path(__file__).resolve().parent
 FEATURES = ['EloDiff_Enhanced', 'FormDiff', 'GoalDiff5']
@@ -157,7 +161,8 @@ def simulate_day(season, fixtures, dates, pools):
                         season['states'][h]['elo'], season['states'][a]['elo']))
         apply_table(season['table'], h, a, hg, ag)
         season['history'].append({'Date': date.strftime('%Y-%m-%d'),
-                                  'HomeTeam': h, 'AwayTeam': a, 'Score': f'{hg}–{ag}'})
+                                  'HomeTeam': h, 'AwayTeam': a, 'Score': f'{hg}–{ag}',
+                                  'probabilities': {key: float(probs[key]) for key in ('H','D','A')}})
         if season['team'] in (h, a):
             own_goals, other_goals = (hg, ag) if season['team'] == h else (ag, hg)
             season['last_match'] = dict(home=h, away=a, hg=hg, ag=ag,
@@ -523,6 +528,14 @@ def match_context(table, own, opponent, fixtures=None):
 
 
 def reset_season():
+    season = st.session_state.get('season')
+    if shared_store is not None and season and 'run_id' in season:
+        if season.get('statistics_cursor', 0) < len(season['history']) or (len(season['history']) == 380 and not season.get('statistics_complete')):
+            archived = {k: season[k] for k in ('run_id','model_version','team','history')}
+            archived['history'] = list(season['history'])
+            archived['statistics_cursor'] = season.get('statistics_cursor', 0)
+            archived['statistics_complete'] = season.get('statistics_complete', False)
+            st.session_state.setdefault('pending_statistics_seasons', []).append(archived)
     st.session_state.season = None
     for key in ('quick_batch', 'quick_request', 'show_quick_setup', 'pending_quick_summary', 'pending_result'):
         st.session_state.pop(key, None)
@@ -634,9 +647,60 @@ def render_league_table(table, results, selected=None, differences=None):
                 unsafe_allow_html=True)
     st.caption('Förenklade Europaplatser. Cupresultat kan påverka verklig kvalificering.')
 
-mode=st.radio('Spelläge', ['Kick Off','Säsong'], horizontal=True, label_visibility='collapsed')
+def shared_statistics_connection():
+    try:
+        config = st.secrets.get('statistics', {})
+    except FileNotFoundError:
+        return None
+    if not config.get('enabled', False):
+        return None
+    try:
+        return SupabaseStore(str(config.get('url', '')), str(config.get('secret_key', '')))
+    except StatisticsError as error:
+        st.warning(str(error))
+        return None
+
+
+def sync_shared_statistics(store):
+    if store is None:
+        return
+    # Bound retries during an outage; the manual retry button can bypass this delay.
+    if time.monotonic() - st.session_state.get('statistics_last_attempt', -100) < 30 and st.session_state.get('statistics_error'):
+        return
+    st.session_state.statistics_last_attempt = time.monotonic()
+    try:
+        flush_kicks(store, st.session_state.setdefault('statistics_outbox', []))
+        archived = st.session_state.setdefault('pending_statistics_seasons', [])
+        while archived:
+            sync_season(store, archived[0], complete=len(archived[0]['history']) == 380)
+            archived.pop(0)
+        season = st.session_state.get('season')
+        if season:
+            sync_season(store, season, complete=len(season['history']) == 380)
+        st.session_state.pop('statistics_error', None)
+    except (StatisticsError, ValueError, KeyError):
+        st.session_state.statistics_error = True
+
+
+current_model_version = model_version(ROOT)
+shared_store = shared_statistics_connection()
+sync_shared_statistics(shared_store)
+if st.session_state.get('statistics_error'):
+    st.warning('Gemensam statistik kunde inte sparas. Spelet fortsätter och resultatet väntar på '
+               'ett nytt försök i den här sessionen. Stäng inte sidan om du vill försöka spara igen.')
+    if st.button('Försök spara statistiken igen', key='retry_statistics'):
+        st.session_state.statistics_last_attempt = -100
+        st.rerun()
+
+mode=st.radio('Spelläge', ['Kick Off','Säsong','Statistik'], horizontal=True, label_visibility='collapsed')
 st.divider()
 result_fallback = st.container()
+if mode == 'Statistik':
+    actual = csv_load('actual_results_2017.csv').copy()
+    actual['Date'] = pd.to_datetime(actual['Date'])
+    actual_table, _ = actual_snapshot(actual, actual.Date.max())
+    render_statistics(shared_store, teams, current_model_version, {t: r['Pts'] for t,r in actual_table.items()})
+    st.stop()
 if mode=='Kick Off':
     left,right=st.columns([1.5,1],gap='large')
     with left:
@@ -671,6 +735,8 @@ if mode=='Kick Off':
             delta=reward if won else 0 if result=='D' else -penalty
             x=st.session_state.kick;x['matches']+=1;x['wins']+=int(won);x['points']+=delta
             x['last']=(result,delta,won)
+            if shared_store is not None:
+                st.session_state.setdefault('statistics_outbox', []).append(kick_event(h,a,result,probs,current_model_version))
             st.session_state['pending_result'] = dict(mode='kick', home=h, away=a, outcome=result,
                 result='Vinst' if won else 'Oavgjort' if result == 'D' else 'Förlust',
                 delta=delta, points=x['points'])
@@ -713,6 +779,7 @@ else:
             if st.button('Starta säsong',type='primary',use_container_width=True):
                 st.session_state.season={'team':selected,'date_idx':0,'states':load_history(),
                                          'table':empty_table(),'history':[], 'last_match':None,
+                                         'run_id':new_run_id(),'model_version':current_model_version,
                                          'rng_seed':int(np.random.default_rng().integers(1,2**31))}
                 advance_to_own_match(st.session_state.season,fixtures,dates,pools)
                 st.rerun()
