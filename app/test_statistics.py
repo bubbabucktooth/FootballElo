@@ -179,14 +179,20 @@ class StatisticsInterfaceTests(unittest.TestCase):
              patch('statistics_page.st.vega_lite_chart', wraps=page_st.vega_lite_chart) as charts:
             app.run()
             app.get('button_group')[0].set_value('Statistik').run()
-            first = charts.call_args.args[0]
+            first_spec = charts.call_args.args[0]
+            first = pd.DataFrame(first_spec['layer'][0]['data']['values'])
             first_key = charts.call_args.kwargs['key']
             self.assertEqual(first.loc[first.Placering.eq(1), 'Säsonger'].iloc[0], 2)
             next(s for s in app.selectbox if s.key == 'stats_distribution_team').set_value('Chelsea').run()
-            second = charts.call_args.args[0]
+            second_spec = charts.call_args.args[0]
+            second = pd.DataFrame(second_spec['layer'][0]['data']['values'])
             self.assertEqual(second.loc[second.Placering.eq(1), 'Säsonger'].iloc[0], 0)
             self.assertEqual(second.loc[second.Placering.eq(5), 'Säsonger'].iloc[0], 2)
             self.assertNotEqual(first_key, charts.call_args.kwargs['key'])
+            self.assertNotEqual(first_spec['layer'][0]['data'], second_spec['layer'][0]['data'])
+            sent_spec = json.loads(app.get('vega_lite_chart')[-1].proto.spec)
+            self.assertEqual(sent_spec['layer'][0]['data'], second_spec['layer'][0]['data'])
+            alt.Chart.from_dict(second_spec)
             self.assertFalse(app.exception)
 
     def test_statistics_filters_are_independent_and_next_to_their_views(self):

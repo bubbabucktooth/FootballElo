@@ -214,16 +214,19 @@ def render_statistics(store, teams, current_version, actual_points):
                     st.caption(f'Underlag för {history_team}: {sum(frequencies.values())} avslutade säsonger.')
                     chart = pd.DataFrame({'Placering': list(range(1, 21)),
                                           'Säsonger': [frequencies.get(i, 0) for i in range(1, 21)]})
-                    st.vega_lite_chart(chart, {
+                    # Inline values make the selected team's data part of the spec itself.
+                    # This avoids stale Arrow dataset reuse in the browser on team changes.
+                    st.vega_lite_chart({
                         'background': '#201831',
                         'padding': {'top': 20, 'right': 20, 'bottom': 20, 'left': 20},
+                        'layer': [{'data': {'values': chart.to_dict('records')},
                         'mark': {'type': 'bar', 'color': '#a687eb', 'cornerRadiusTopLeft': 3, 'cornerRadiusTopRight': 3},
                         'encoding': {
                             'x': {'field': 'Placering', 'type': 'ordinal', 'sort': list(range(1, 21)),
                                   'axis': {'labelAngle': 0}},
                             'y': {'field': 'Säsonger', 'type': 'quantitative', 'axis': {'tickMinStep': 1}},
                             'tooltip': [{'field': 'Placering', 'type': 'ordinal'},
-                                        {'field': 'Säsonger', 'type': 'quantitative', 'format': 'd'}]},
+                                        {'field': 'Säsonger', 'type': 'quantitative', 'format': 'd'}]}}],
                         'config': {'font': 'Poppins, Segoe UI, sans-serif', 'view': {'stroke': None},
                                    'axis': {'labelColor': '#d6c9e8', 'titleColor': '#f4f1fc',
                                             'gridColor': '#ffffff12', 'domainColor': '#665180'}}
