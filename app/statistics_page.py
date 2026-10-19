@@ -8,9 +8,14 @@ from statistics_store import StatisticsError
 def statistics_table(frame, key, selected=None, formats=None):
     """Use the league table's presentation with explicit sorting and CSV export."""
     formats = formats or {}
-    with st.expander('Sortera och exportera tabellen'):
+    sort_column, sort_direction = st.columns([2, 1])
+    with sort_column:
         column = st.selectbox('Sortera efter', list(frame.columns), key=f'{key}_sort')
-        descending = st.checkbox('Fallande ordning', key=f'{key}_descending')
+    with sort_direction:
+        direction = st.segmented_control('Ordning', ['Stigande', 'Fallande'], default='Stigande',
+                                         required=True, key=f'{key}_direction')
+    descending = direction == 'Fallande'
+    with st.expander('Exportera tabellen'):
         st.download_button('Hämta CSV', frame.to_csv(index=False).encode('utf-8-sig'),
                            file_name=f'{key}.csv', mime='text/csv', key=f'{key}_csv')
     ordered = frame.sort_values(column, ascending=not descending, na_position='last', kind='stable')
@@ -121,15 +126,17 @@ def render_statistics(store, teams, current_version, actual_points):
                          'Vanligaste placering': ', '.join(map(str, r.get('common_positions', []))) or '–',
                          'Bäst': r.get('best_position'), 'Sämst': r.get('worst_position'),
                          'Seriesegrar': int(r.get('titles', 0)),
-                         'Topp 4 %': 100*int(r.get('top_four', 0))/n if n else None,
+                         'Topp 4 (%)': 100*int(r.get('top_four', 0))/n if n else None,
                          'Nedflyttning %': 100*int(r.get('relegations', 0))/n if n else None,
                          'Poängsnitt': points, 'Verkliga poäng': actual_points[team],
                          'Δ poängsnitt': points-actual_points[team] if n else None})
         statistics_table(pd.DataFrame(rows), 'season_statistics', history_team,
-                         {**{k: '{:.1f}' for k in ('Snittplacering', 'Topp 4 %', 'Nedflyttning %', 'Poängsnitt')},
+                         {**{k: '{:.1f}' for k in ('Snittplacering', 'Topp 4 (%)', 'Nedflyttning %', 'Poängsnitt')},
                           'Δ poängsnitt': '{:+.1f}', 'Bäst': '{:.0f}', 'Sämst': '{:.0f}'})
         st.caption('Endast fullständiga säsonger med 380 matcher räknas här. Alla 20 lag ingår i varje '
                    'säsong, oavsett vilket lag besökaren valde. Lika vanliga slutplaceringar visas tillsammans.')
+        st.caption('Topp 4 (%) = andelen avslutade simuleringar där laget slutat på plats 1–4. '
+                   'Exempel: 8 av 10 säsonger ger 80 %. Nedflyttning (%) gäller på samma sätt plats 18–20.')
         st.subheader(f'Placeringsfördelning · {history_team}')
         frequencies = {int(r['position']): int(r['count']) for r in data.get('distribution', []) if r['team'] == history_team}
         if frequencies:

@@ -249,6 +249,13 @@ class StatisticsInterfaceTests(unittest.TestCase):
             self.assertEqual(len(charts), 1)
             padding = json.loads(charts[0].proto.spec)['padding']
             self.assertEqual(padding, dict(top=20, right=20, bottom=20, left=20))
+            next(s for s in app.selectbox if s.key == 'kick_statistics_sort').set_value('Matcher').run()
+            for direction, first, second in [('Stigande', 'Bournemouth', 'Arsenal'),
+                                             ('Fallande', 'Arsenal', 'Bournemouth')]:
+                next(g for g in app.get('button_group') if g.key == 'kick_statistics_direction').set_value(direction).run()
+                self.assertFalse(app.exception)
+                html = next(m.value for m in app.markdown if m.value.startswith('<div class="league-wrap statistics-table-wrap">'))
+                self.assertLess(html.index(f'<td>{first}</td>'), html.index(f'<td>{second}</td>'))
 
 
 if __name__ == '__main__':
