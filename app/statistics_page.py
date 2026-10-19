@@ -1,7 +1,31 @@
 """Read-only shared statistics UI. Aggregation is performed by PostgreSQL."""
 import pandas as pd
 import streamlit as st
+from html import escape
 from statistics_store import StatisticsError
+
+
+def statistics_table(frame, key, selected=None, formats=None):
+    """Use the league table's presentation with explicit sorting and CSV export."""
+    formats = formats or {}
+    with st.expander('Sortera och exportera tabellen'):
+        column = st.selectbox('Sortera efter', list(frame.columns), key=f'{key}_sort')
+        descending = st.checkbox('Fallande ordning', key=f'{key}_descending')
+        st.download_button('Hämta CSV', frame.to_csv(index=False).encode('utf-8-sig'),
+                           file_name=f'{key}.csv', mime='text/csv', key=f'{key}_csv')
+    ordered = frame.sort_values(column, ascending=not descending, na_position='last', kind='stable')
+    headers = ''.join(f'<th scope="col">{escape(str(c))}</th>' for c in frame.columns)
+    rows = []
+    for record in ordered.to_dict('records'):
+        cells = []
+        for name, value in record.items():
+            text = '–' if pd.isna(value) else formats[name].format(value) if name in formats else str(value)
+            cells.append(f'<td>{escape(text)}</td>')
+        own = 'own-team' if record.get('Lag') == selected else ''
+        rows.append(f'<tr class="{own}">' + ''.join(cells) + '</tr>')
+    st.markdown('<div class="league-wrap statistics-table-wrap"><table class="league-table statistics-table">'
+                '<thead><tr>' + headers + '</tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div>',
+                unsafe_allow_html=True)
 
 
 @st.cache_data(ttl=30, show_spinner=False)
@@ -29,8 +53,8 @@ def render_statistics(store, teams, current_version, actual_points):
     if selected_version is None:
         st.caption('Olika modellversioner kan ha olika förutsättningar. Jämför dem med försiktighet.')
     venue_col, opponent_col = st.columns(2)
-    venue = venue_col.selectbox('Kick Off · spelplats', ['Alla', 'Hemma', 'Borta'], key='stats_venue')
-    opponent = opponent_col.selectbox('Kick Off · motståndare', ['Alla'] + teams, key='stats_opponent')
+    venue = venue_col.selectbox('Kick-off · spelplats', ['Alla', 'Hemma', 'Borta'], key='stats_venue')
+    opponent = opponent_col.selectbox('Kick-off · motståndare', ['Alla'] + teams, key='stats_opponent')
     history_team = st.selectbox('Lag för matchhistorik och placeringsfördelning', teams, key='stats_team')
     filters = (selected_version, venue, opponent, history_team)
     if st.session_state.get('stats_filters') != filters:
@@ -48,7 +72,7 @@ def render_statistics(store, teams, current_version, actual_points):
             st.warning(str(error))
             st.caption('Statistiken kan inte visas just nu. Befintliga resultat finns kvar i databasen.')
             return
-    kick_tab, season_tab = st.tabs(['Kick Off-statistik', 'Säsongsstatistik'])
+    kick_tab, season_tab = st.tabs(['Kick-off-statistik', 'Säsongsstatistik'])
     with kick_tab:
         st.metric('Registrerade matcher · valda filter', data.get('kick_total', 0))
         indexed = {r['team']: r for r in data.get('kick', [])}
@@ -61,8 +85,8 @@ def render_statistics(store, teams, current_version, actual_points):
                          'F': int(r.get('losses', 0)), 'Vinst %': 100*wins/n if n else None,
                          'Förväntade vinster': expected if n else None,
                          'Vinster − förväntat': wins-expected if n else None})
-        st.dataframe(pd.DataFrame(rows).style.format({'Vinst %': '{:.1f}', 'Förväntade vinster': '{:.1f}',
-                     'Vinster − förväntat': '{:+.1f}'}, na_rep='–'), hide_index=True, use_container_width=True)
+        statistics_table(pd.DataFrame(rows), 'kick_statistics', history_team,
+                         {'Vinst %': '{:.1f}', 'Förväntade vinster': '{:.1f}', 'Vinster − förväntat': '{:+.1f}'})
         st.caption('Båda lagen får ett resultat per match. Förväntade vinster är summan av modellens '
                    'vinstsannolikheter. Spelets bonuspoäng ingår inte här.')
         st.subheader(f'Matchhistorik · {history_team}')
@@ -72,8 +96,8 @@ def render_statistics(store, teams, current_version, actual_points):
             records = [{'Tid (UTC)': r['occurred_at'], 'Hemma': r['home'], 'Borta': r['away'],
                         'Utfall': labels[r['outcome']], '1 %': 100*float(r['p_h']),
                         'X %': 100*float(r['p_d']), '2 %': 100*float(r['p_a'])} for r in history]
-            st.dataframe(pd.DataFrame(records).style.format({'1 %': '{:.1f}', 'X %': '{:.1f}', '2 %': '{:.1f}'}),
-                         hide_index=True, use_container_width=True)
+            statistics_table(pd.DataFrame(records), 'kick_history',
+                             formats={'1 %': '{:.1f}', 'X %': '{:.1f}', '2 %': '{:.1f}'})
         else:
             st.write('Inga registrerade matcher för de valda filtren ännu.')
         total = data.get('history_total', 0)
@@ -101,9 +125,9 @@ def render_statistics(store, teams, current_version, actual_points):
                          'Nedflyttning %': 100*int(r.get('relegations', 0))/n if n else None,
                          'Poängsnitt': points, 'Verkliga poäng': actual_points[team],
                          'Δ poängsnitt': points-actual_points[team] if n else None})
-        st.dataframe(pd.DataFrame(rows).style.format({k: '{:.1f}' for k in
-            ('Snittplacering', 'Topp 4 %', 'Nedflyttning %', 'Poängsnitt', 'Δ poängsnitt')}, na_rep='–'),
-            hide_index=True, use_container_width=True)
+        statistics_table(pd.DataFrame(rows), 'season_statistics', history_team,
+                         {**{k: '{:.1f}' for k in ('Snittplacering', 'Topp 4 %', 'Nedflyttning %', 'Poängsnitt')},
+                          'Δ poängsnitt': '{:+.1f}', 'Bäst': '{:.0f}', 'Sämst': '{:.0f}'})
         st.caption('Endast fullständiga säsonger med 380 matcher räknas här. Alla 20 lag ingår i varje '
                    'säsong, oavsett vilket lag besökaren valde. Lika vanliga slutplaceringar visas tillsammans.')
         st.subheader(f'Placeringsfördelning · {history_team}')
@@ -111,7 +135,19 @@ def render_statistics(store, teams, current_version, actual_points):
         if frequencies:
             chart = pd.DataFrame({'Placering': list(range(1, 21)),
                                   'Säsonger': [frequencies.get(i, 0) for i in range(1, 21)]})
-            st.bar_chart(chart, x='Placering', y='Säsonger')
+            st.vega_lite_chart(chart, {
+                'background': '#201831', 'padding': 20,
+                'mark': {'type': 'bar', 'color': '#a687eb', 'cornerRadiusTopLeft': 3, 'cornerRadiusTopRight': 3},
+                'encoding': {
+                    'x': {'field': 'Placering', 'type': 'ordinal', 'sort': list(range(1, 21)),
+                          'axis': {'labelAngle': 0}},
+                    'y': {'field': 'Säsonger', 'type': 'quantitative', 'axis': {'tickMinStep': 1}},
+                    'tooltip': [{'field': 'Placering', 'type': 'ordinal'},
+                                {'field': 'Säsonger', 'type': 'quantitative', 'format': 'd'}]},
+                'config': {'font': 'Poppins, Segoe UI, sans-serif', 'view': {'stroke': None},
+                           'axis': {'labelColor': '#d6c9e8', 'titleColor': '#f4f1fc',
+                                    'gridColor': '#ffffff12', 'domainColor': '#665180'}}
+            }, use_container_width=True, theme=None)
         else:
             st.write('Ingen avslutad säsong har registrerats ännu.')
         if store is not None:

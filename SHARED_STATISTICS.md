@@ -94,3 +94,15 @@ Supabase-projekt innan insamlingen betraktas som driftsatt.
 Dokumentation:
 https://supabase.com/docs/guides/getting-started/api-keys
 https://supabase.com/docs/guides/database/postgres/row-level-security
+# Anonyma Kick-off-rekord
+
+Kör även `app/sql/002_kick_highscores.sql` i Supabase SQL Editor efter grundschemat.
+Uppdateringen skapar separata tabeller och RPC-funktioner för avslutade omgångar.
+Rekord visas separat för 10, 20 och 30 matcher och aktuell modellversion.
+Databasen beräknar totalpoängen från de redan sparade matchernas sannolikheter och utfall.
+Samma match kan endast tillhöra en omgång. Unika omgångs-ID:n gör återförsök säkra.
+
+Omgångar som avbryts eller som påbörjats innan denna funktion infördes räknas inte som rekord.
+Vid nätverksfel väntar avslutade omgångar på återförsök i samma Streamlit-session.
+Om sessionen upphör innan sparningen bekräftats kan det osparade rekordet gå förlorat.
+Ingen inloggning eller personlig identifiering sparas. Det finns ingen begränsning av antal försök.

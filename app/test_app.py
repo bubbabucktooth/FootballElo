@@ -209,10 +209,55 @@ class SeasonTests(unittest.TestCase):
 
 
 class InterfaceTests(unittest.TestCase):
+    def test_about_dialog_closes_without_starting_game(self):
+        app = AppTest.from_file(str(APP), default_timeout=60).run()
+        next(b for b in app.button if b.key == 'open_about').click().run()
+        self.assertFalse(app.exception)
+        self.assertTrue(any('# BEAT THE MODEL' in m.value for m in app.markdown))
+        next(b for b in app.button if b.key == 'close_about').click().run()
+        self.assertFalse(app.exception)
+        self.assertIn('Spela nu', [b.label for b in app.button])
+
+    def test_kick_round_lengths_locked_team_sides_and_finish(self):
+        for limit in (10, 20, 30):
+            with self.subTest(limit=limit):
+                app = AppTest.from_file(str(APP), default_timeout=60)
+                app.session_state['app_started'] = True
+                app.run()
+                self.assertFalse(app.selectbox)
+                next(b for b in app.button if b.key == f'choose_round_{limit}').click().run()
+                next(s for s in app.selectbox if s.key == 'kick_team_choice').set_value('Crystal Palace').run()
+                next(b for b in app.button if b.label == 'Starta omgång').click().run()
+                self.assertEqual(app.session_state['kick']['team'], 'Crystal Palace')
+                self.assertFalse(any(s.label == 'Ditt lag' for s in app.selectbox))
+                opponent = next(s for s in app.selectbox if s.key == 'kick_opponent').value
+                for venue in ('Hemma', 'Borta'):
+                    next(g for g in app.get('button_group') if g.key == 'kick_venue').set_value(venue).run()
+                    card = next(m.value for m in app.markdown if 'KICK-OFF · DIN MATCH' in m.value)
+                    home, away = ('Crystal Palace', opponent) if venue == 'Hemma' else (opponent, 'Crystal Palace')
+                    self.assertLess(card.index(f'class="team-name">{home}'), card.index(f'class="team-name">{away}'))
+                # Exercise the last match boundary without simulating thirty UI dialogs per case.
+                state = dict(app.session_state['kick'])
+                state['matches'] = limit - 1
+                app.session_state['kick'] = state
+                with patch('numpy.random.choice', return_value='D'):
+                    next(b for b in app.button if b.label == 'Spela match').click().run()
+                self.assertFalse(app.exception)
+                self.assertEqual(app.session_state['kick']['matches'], limit)
+                self.assertTrue(app.session_state['pending_result']['finished'])
+                next(b for b in app.button if b.key == 'close_result').click().run()
+                self.assertIn('Omgången är klar!', [h.value for h in app.subheader])
+                self.assertFalse(any(b.label == 'Spela match' for b in app.button))
+                app.run()
+                self.assertEqual(app.session_state['kick']['matches'], limit)
+                next(b for b in app.button if b.label == 'Ny omgång').click().run()
+                self.assertNotIn('kick', app.session_state.filtered_state)
+                self.assertFalse(app.exception)
+
     def test_quick_three_then_finish_and_new_season(self):
         app = AppTest.from_file(str(APP), default_timeout=60).run()
         next(b for b in app.button if b.label == 'Spela nu').click().run()
-        app.radio[0].set_value('Säsong').run()
+        app.get('button_group')[0].set_value('Säsong').run()
         next(b for b in app.button if b.label == 'Starta säsong').click().run()
         next(b for b in app.button if b.label == 'Snabbsimulera').click().run()
         self.assertEqual(app.session_state['season']['table']['Arsenal']['P'], 0)
@@ -255,7 +300,7 @@ class InterfaceTests(unittest.TestCase):
         app.session_state['season'] = dict(team='Arsenal', table=table, history=history,
             states=s['starting_states'](), date_idx=actual.Date.nunique(), rng_seed=1, last_match=None)
         app.run()
-        app.radio[0].set_value('Säsong').run()
+        app.get('button_group')[0].set_value('Säsong').run()
         self.assertFalse(app.exception)
         self.assertIn('Hur nära verkligheten?', [h.value for h in app.subheader])
         self.assertIn('0,0 poäng', [m.value for m in app.metric])
@@ -264,10 +309,12 @@ class InterfaceTests(unittest.TestCase):
     def test_kickoff_overlay_all_outcomes_and_away_perspective(self):
         app = AppTest.from_file(str(APP), default_timeout=30).run()
         next(b for b in app.button if b.label == 'Spela nu').click().run()
+        next(b for b in app.button if b.key == 'choose_round_10').click().run()
+        next(b for b in app.button if b.label.startswith('Starta om')).click().run()
         for index, (venue, outcome, label) in enumerate([
                 ('Hemma','H','Vinst'), ('Hemma','D','Oavgjort'),
                 ('Hemma','A','Förlust'), ('Borta','H','Förlust')], start=1):
-            app.radio[1].set_value(venue).run()
+            app.get('button_group')[1].set_value(venue).run()
             with patch('numpy.random.choice', return_value=outcome):
                 next(b for b in app.button if b.label == 'Spela match').click().run()
             self.assertFalse(app.exception)
@@ -278,7 +325,7 @@ class InterfaceTests(unittest.TestCase):
             delta = app.session_state['kick']['last'][1]
             self.assertTrue(delta > 0 if label == 'Vinst' else delta == 0 if label == 'Oavgjort' else -100 <= delta <= 0)
             points = app.session_state['kick']['points']
-            next(b for b in app.button if b.label == 'Spela igen').click().run()
+            next(b for b in app.button if b.key == 'close_result').click().run()
             self.assertFalse(app.exception)
             self.assertEqual(app.session_state['kick']['matches'], index)
             self.assertEqual(app.session_state['kick']['points'], points)
@@ -290,7 +337,7 @@ class InterfaceTests(unittest.TestCase):
         next(b for b in app.button if b.label == 'Spela nu').click().run()
         self.assertFalse(app.exception)
         self.assertTrue(next(b for b in app.button if b.key == 'go_home').label.startswith('![Till startsidan](data:image/png;base64,'))
-        app.radio[0].set_value('Säsong').run()
+        app.get('button_group')[0].set_value('Säsong').run()
         next(b for b in app.button if b.label == 'Starta säsong').click().run()
         self.assertFalse(app.exception)
         next(b for b in app.button if b.label == 'Spela match').click().run()

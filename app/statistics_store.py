@@ -134,3 +134,15 @@ class SupabaseStore:
         if not isinstance(result, dict) or not all(isinstance(result.get(k), list) for k in ('kick','seasons','history','distribution')):
             raise StatisticsError('Statistikdatabasen gav ett oväntat svar. Kontrollera SQL-versionen.')
         return result
+
+    def save_round(self, payload):
+        result = self._rpc('btm_save_round', {'payload': payload})
+        if not isinstance(result, dict) or result.get('ok') is not True:
+            raise StatisticsError('Omgångens rekord kunde inte bekräftas.')
+        return result
+
+    def highscores(self, version):
+        result = self._rpc('btm_highscores', {'p_version': version})
+        if not isinstance(result, list):
+            raise StatisticsError('Rekordlistan gav ett oväntat svar.')
+        return result

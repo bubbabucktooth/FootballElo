@@ -35,14 +35,9 @@ def model_load():
 def csv_load(name):
     return pd.read_csv(ROOT/name)
 
-brand,about=st.columns([3,1],gap='large',vertical_alignment='center')
-with brand:
-    if st.session_state.get('app_started', False):
-        if st.button(f'![Till startsidan]({logo_data_uri()})', key='go_home', width=160):
-            st.session_state.app_started = False
-            st.rerun()
-with about:
-    with st.expander('Om appen'), st.container(key='about_copy'):
+@st.dialog('Om appen', width='large')
+def show_about():
+    with st.container(key='about_copy'):
         st.markdown('''# BEAT THE MODEL
 
 ### Fotboll är oförutsägbart. Men hur mycket kan vi faktiskt förutse?
@@ -51,7 +46,7 @@ Vad händer om vi låter statistik spela fotboll?
 
 **Beat the Model** är ett interaktivt fotbollsspel byggt på en prediktiv modell för Premier League. Här möts historiska matchresultat, statistiska sannolikheter och fotbollens oförutsägbarhet.
 
-Välj ditt favoritlag, utmana en motståndare i **Kick Off** eller ta dig an en hel Premier League-säsong. Varje match får sitt eget utfall, varje resultat påverkar säsongen och varje simulering berättar en ny historia.
+Välj ditt favoritlag, utmana en motståndare i **Kick-off** eller ta dig an en hel Premier League-säsong. Varje match får sitt eget utfall, varje resultat påverkar säsongen och varje simulering berättar en ny historia.
 
 **Samma förutsättningar. Nya möjligheter.**
 
@@ -69,6 +64,19 @@ Ett lag med 80 procents vinstchans förlorar fortfarande ibland. En underdog kan
 
 Det är just den osäkerheten som Beat the Model utforskar.
 ''')
+        if st.button('Stäng', key='close_about', type='primary'):
+            st.rerun()
+
+
+brand,about=st.columns([3,1],gap='large',vertical_alignment='center')
+with brand:
+    if st.session_state.get('app_started', False):
+        if st.button(f'![Till startsidan]({logo_data_uri()})', key='go_home', width=160):
+            st.session_state.app_started = False
+            st.rerun()
+with about:
+    if st.button('Om appen', icon=':material/info:', key='open_about'):
+        show_about()
 if not st.session_state.get('app_started', False):
     st.markdown(f'<div class="landing-hero">{arcade_logo()}'
                 '<p class="landing-tagline">Bollen är rund.</p></div>', unsafe_allow_html=True)
@@ -194,15 +202,16 @@ def match_preview(own, opponent, home, probs, states):
             f'{caution} De har tagit {form} poäng på sina fem senaste matcher, '
             f"du har tagit {sum(states[own]['form'])}.")
 
-def match_card(home, away, middle, caption, winner=None, champion=None):
+def match_card(home, away, middle, caption, winner=None, champion=None, details=None, tone=''):
     home_pose = 'trophy' if home == champion else 'win' if home == winner else 'sad' if winner else 'neutral'
     away_pose = 'trophy' if away == champion else 'win' if away == winner else 'sad' if winner else 'neutral'
-    st.markdown(f'''<div class="match-card">
+    details = details or {}
+    st.markdown(f'''<div class="match-card {tone}">
         <div class="match-caption">{escape(caption)}</div>
         <div class="match-teams">
-        <div class="match-team">{team_badge(home, home_pose)}<span class="team-name">{escape(home)}</span><small class="match-venue">HEMMA</small></div>
+        <div class="match-team">{team_badge(home, home_pose)}<span class="team-name">{escape(home)}</span><small class="match-venue">HEMMA</small>{details.get(home, '')}</div>
         <div class="match-score">{escape(middle)}</div>
-        <div class="match-team">{team_badge(away, away_pose)}<span class="team-name">{escape(away)}</span><small class="match-venue">BORTA</small></div></div></div>''',
+        <div class="match-team">{team_badge(away, away_pose)}<span class="team-name">{escape(away)}</span><small class="match-venue">BORTA</small>{details.get(away, '')}</div></div></div>''',
         unsafe_allow_html=True)
 
 
@@ -272,27 +281,30 @@ def team_badge(team, pose='neutral'):
 
 
 def show_match_result(result):
-    st.markdown(f'<div class="result-reveal"><div class="result-label">'
+    tone = {'Vinst': 'result-win', 'Oavgjort': 'result-draw', 'Förlust': 'result-loss'}[result['result']]
+    st.markdown(f'<div class="result-reveal {tone}"><div class="result-label">'
                 f'{"Seriesegrare!" if result.get("new_champion") else escape(result["result"])}</div></div>', unsafe_allow_html=True)
     if result.get('mode') == 'kick':
         winner = result['home'] if result['outcome'] == 'H' else result['away'] if result['outcome'] == 'A' else None
         match_card(result['home'], result['away'], {'H': '1', 'D': 'X', 'A': '2'}[result['outcome']],
-                   'KICK OFF · MATCHUTFALL', winner=winner)
+                   'KICK-OFF · MATCHUTFALL', winner=winner, tone=tone)
         st.write({'Vinst': 'Segern är din! Poängen är inne.', 'Oavgjort': 'Delad pott. Redo för ett nytt försök?',
                   'Förlust': 'Motståndaren vann den här gången. Ladda om!'}[result['result']])
         st.markdown('<div class="result-grid kick-grid result-reveal">'
                     f'<div class="result-stat"><strong>{result["delta"]:+d}</strong><small>Poäng den här matchen</small></div>'
                     f'<div class="result-stat"><strong>{result["points"]:+d}</strong><small>Totalpoäng</small></div></div>',
                     unsafe_allow_html=True)
-        st.caption('1 = hemmavinst · X = oavgjort · 2 = bortavinst. Kick Off simulerar endast matchutfall.')
-        if st.button('Spela igen', type='primary', use_container_width=True, key='close_result',on_click=dismiss_result):
+        st.caption('1 = hemmavinst · X = oavgjort · 2 = bortavinst. Kick-off simulerar endast matchutfall.')
+        if result.get('match_number'):
+            st.caption(f'Match {result["match_number"]} av {result["limit"]}')
+        if st.button('Visa sammanfattning' if result.get('finished') else 'Till nästa match', type='primary', use_container_width=True, key='close_result',on_click=dismiss_result):
             st.session_state.pop('pending_result',None)
             st.rerun()
         return
     winner = result['home'] if result['hg'] > result['ag'] else result['away'] if result['ag'] > result['hg'] else None
     match_card(result['home'], result['away'], f"{result['hg']} – {result['ag']}",
                f"SLUTRESULTAT · {result['date']}", winner=winner,
-               champion=result['team'] if result.get('champion') else None)
+               champion=result['team'] if result.get('champion') else None, tone=tone)
     for notice in result.get('notices', []):
         st.info(notice)
     st.write(result.get('reaction', 'Matchen är färdigspelad.'))
@@ -305,7 +317,8 @@ def show_match_result(result):
                 f'<div class="result-stat"><strong>{result.get("streak", 0)}</strong><small>Raka vinster</small></div>'
                 '</div>', unsafe_allow_html=True)
     st.caption(f"{result['team']} · {result['points']} poäng totalt. "
-               'Placeringen inkluderar övriga ligans resultat fram till nästa match eller säsongsslutet.')
+               'Tabellplats: före din match → efter alla simulerade matcher fram till nästa egna match eller säsongsslutet. '
+               'Före första matchen visas bara den aktuella platsen.')
     if result.get('quick_title'):
         if st.button('Fortsätt snabbsimuleringen' if result['quick_pause'] else 'Visa snabbsammanfattning',
                      type='primary', use_container_width=True, key='continue_quick'):
@@ -557,8 +570,10 @@ PREVIOUS_SEASON = {
 
 
 def probability_cards(home, away, probabilities, decimals=0):
-    cards = ''.join(f'<div class="probability-card"><span>{escape(label)}</span>'
-                    f'<strong>{probabilities[key]:.{decimals}%}</strong></div>'
+    maximum = max(probabilities.values())
+    cards = ''.join(f'<div class="probability-card {"probability-leading" if probabilities[key] == maximum else ""}"><span>{escape(label)}</span>'
+                    f'<strong>{probabilities[key]:.{decimals}%}</strong>'
+                    f'<small>{"Högst sannolikhet" if probabilities[key] == maximum else "Modellens prognos"}</small></div>'
                     for label, key in ((home, 'H'), ('Oavgjort', 'D'), (away, 'A')))
     st.markdown(f'<div class="probability-grid" aria-label="Modellens sannolikheter">{cards}</div>',
                 unsafe_allow_html=True)
@@ -573,6 +588,36 @@ def team_preview(team, elo):
         previous_text = f'<small>2016/17 · Plats {position} i {league}{promoted}</small>'
     st.markdown(f'<div class="team-preview">{team_badge(team)}<div class="team-details"><strong>{escape(team)}</strong>'
                 f'<small>Lagstyrka · Elo {elo:,.0f}</small>{previous_text}</div></div>', unsafe_allow_html=True)
+
+
+def kickoff_details(team):
+    position, league = PREVIOUS_SEASON[team]
+    return (f'<small class="match-strength">Elo {float(initial.loc[team, "Elo"]):,.0f}</small>'
+            f'<small class="match-history">2016/17 · {position} i {escape(league)}</small>')
+
+
+def render_match_analysis(own, opponent, home, probs, states, table):
+    # Present the existing preview in two sections without changing its conditions or values.
+    preview = match_preview(own, opponent, home, probs, states)
+    fixture_text, outlook, form = preview.split('. ', 2)
+    played = {team: table[team]['P'] for team in (own, opponent)}
+    form_heading = 'Form i din säsong'
+    descriptions = []
+    for team, count in played.items():
+        if count == 0:
+            descriptions.append(f'{team}: ingen spelad match ännu.')
+        else:
+            recent_count = min(count, 5)
+            points = table[team]['Pts'] if count < 5 else sum(states[team]['form'])
+            period = 'sin enda match' if recent_count == 1 else f'sina {recent_count} senaste matcher'
+            descriptions.append(f'{team}: {points} poäng på {period}.')
+    form = ' '.join(descriptions)
+    if any(count < 5 for count in played.values()):
+        form += ' Modellens prognos använder även historisk form tills laget har spelat fem matcher.'
+    st.markdown('<div class="match-analysis"><section><h3>Matchanalys</h3><p>'
+                + escape(f'{fixture_text}. {outlook}.') + '</p></section>'
+                '<section><h3>' + form_heading + '</h3><p>' + escape(form) + '</p></section></div>',
+                unsafe_allow_html=True)
 
 
 def actual_snapshot(actual_results, cutoff=None):
@@ -634,18 +679,22 @@ def render_league_table(table, results, selected=None, differences=None):
         rows.append(f'<tr class="{classes}"><td title="{zone_label}">{row["#"]}</td><td>{escape(team)}</td><td>{row["P"]}</td>'
                     f'<td>{row["MS"]}</td><td><strong>{row["Pts"]}</strong></td>{delta_cell}'
                     f'<td><span class="form-strip">{markers}</span></td></tr>')
-    widths = [6,27,7,8,9,10,33] if differences is not None else [7,31,8,9,10,35]
+    widths = [7,29,7,8,9,10,30] if differences is not None else [7,31,8,9,10,35]
     columns = '<colgroup>' + ''.join(f'<col style="width:{width}%">' for width in widths) + '</colgroup>'
     delta_header = '<th title="Simulerade poäng minus verkliga poäng">Δ</th>' if differences is not None else ''
     st.markdown('<div class="league-wrap"><table class="league-table" aria-label="Ligatabell">'
                 + columns + '<thead><tr><th>#</th><th>Lag</th><th>P</th><th>MS</th><th>Pts</th>'
                 + delta_header + '<th>Form</th></tr></thead>'
                 '<tbody>' + ''.join(rows) + '</tbody></table></div>', unsafe_allow_html=True)
-    st.caption('Senaste 5: grön V = vinst · grå O = oavgjort · röd F = förlust. Nyaste till höger.')
+    with st.expander('Så läser du tabellen'):
+        st.caption('P = spelade matcher · MS = målskillnad · Pts = ligapoäng. Sortering: poäng, målskillnad, gjorda mål.')
+        st.caption('Senaste 5: grön V = vinst · grå O = oavgjort · röd F = förlust. Nyaste till höger.')
+        if differences is not None:
+            st.caption('Δ = simulerade poäng minus verkliga poäng vid samma speldatum, i båda flikarna.')
+        st.caption('Förenklade Europaplatser. Cupresultat kan påverka verklig kvalificering.')
     st.markdown('<div class="zone-legend"><span class="legend-cl">1–4 CL</span>'
                 '<span class="legend-el">5 EL</span><span class="legend-down">18–20 Nedflyttning</span></div>',
                 unsafe_allow_html=True)
-    st.caption('Förenklade Europaplatser. Cupresultat kan påverka verklig kvalificering.')
 
 def shared_statistics_connection():
     try:
@@ -670,6 +719,11 @@ def sync_shared_statistics(store):
     st.session_state.statistics_last_attempt = time.monotonic()
     try:
         flush_kicks(store, st.session_state.setdefault('statistics_outbox', []))
+        rounds = st.session_state.setdefault('pending_kick_rounds', [])
+        while rounds:
+            store.save_round(rounds[0])
+            rounds.pop(0)
+            load_highscores.clear()
         archived = st.session_state.setdefault('pending_statistics_seasons', [])
         while archived:
             sync_season(store, archived[0], complete=len(archived[0]['history']) == 380)
@@ -682,6 +736,18 @@ def sync_shared_statistics(store):
         st.session_state.statistics_error = True
 
 
+@st.cache_data(ttl=30, show_spinner=False)
+def load_highscores(endpoint, version, _store):
+    return _store.highscores(version)
+
+
+def round_illustration(count):
+    """Small original pixel pitch, made with existing kit sprites."""
+    return (f'<div class="round-pitch round-pitch-{count}" aria-hidden="true">'
+            '<div class="pitch-center"></div>' + team_badge('Arsenal') + team_badge('Chelsea') +
+            '<span class="pixel-ball"></span></div>')
+
+
 current_model_version = model_version(ROOT)
 shared_store = shared_statistics_connection()
 sync_shared_statistics(shared_store)
@@ -692,7 +758,10 @@ if st.session_state.get('statistics_error'):
         st.session_state.statistics_last_attempt = -100
         st.rerun()
 
-mode=st.radio('Spelläge', ['Kick Off','Säsong','Statistik'], horizontal=True, label_visibility='collapsed')
+mode_icons = {'Kick-off': 'sports_soccer', 'Säsong': 'emoji_events', 'Statistik': 'bar_chart'}
+mode=st.segmented_control('Spelläge', ['Kick-off','Säsong','Statistik'], default='Kick-off', required=True,
+                          format_func=lambda value: f':material/{mode_icons[value]}: {value}',
+                          key='game_mode', label_visibility='collapsed')
 st.divider()
 result_fallback = st.container()
 if mode == 'Statistik':
@@ -701,56 +770,137 @@ if mode == 'Statistik':
     actual_table, _ = actual_snapshot(actual, actual.Date.max())
     render_statistics(shared_store, teams, current_model_version, {t: r['Pts'] for t,r in actual_table.items()})
     st.stop()
-if mode=='Kick Off':
+if mode=='Kick-off':
     left,right=st.columns([1.5,1],gap='large')
+    x = st.session_state.get('kick')
+    # Previous unlimited sessions remain separate from the new fixed-length rounds.
+    if x and 'limit' not in x:
+        st.session_state.pop('kick', None)
+        st.session_state.pop('pending_result', None)
+        x = None
+    team_label = lambda team: team
     with left:
-        st.header('Kick Off')
-        team_col,opponent_col=st.columns(2)
-        own=team_col.selectbox('Ditt lag',teams)
-        opp=opponent_col.selectbox('Motståndare',[t for t in teams if t!=own])
-        with team_col:
-            team_preview(own, float(initial.loc[own, 'Elo']))
-        with opponent_col:
-            team_preview(opp, float(initial.loc[opp, 'Elo']))
-        st.caption('Elo: högre värde innebär högre uppskattad lagstyrka. Form påverkar också matchprognosen.')
-        venue=st.radio('Spelplats',['Hemma','Borta'],horizontal=True)
-        h,a=(own,opp) if venue=='Hemma' else (opp,own)
-        states=load_history() if (ROOT/'history_last5.csv').exists() else starting_states()
-        if not (ROOT/'history_last5.csv').exists():
-            # team_states.csv already contains exact form sums for kickoff
-            for t,r in initial.iterrows():
-                states[t]['form']=[0]*4+[int(r.Form5)]
-                states[t]['goals']=[0]*4+[int(r.GoalDiff5)]
-        probs=predict(h,a,states)
-        probability_cards(h,a,probs,decimals=1)
-        pw=probs['H'] if venue=='Hemma' else probs['A']
-        reward=round(100/pw); penalty=round(100*pw)
-        st.markdown(f'<div class="match-note scoring-note"><span><strong>Vinst</strong> +{reward} poäng</span>'
-                    f'<span><strong>Förlust</strong> −{penalty} poäng</span><span><strong>Oavgjort</strong> 0 poäng</span></div>',
-                    unsafe_allow_html=True)
-        if 'kick' not in st.session_state: st.session_state.kick={'matches':0,'wins':0,'points':0,'last':None}
-        if st.button('Spela match',type='primary',use_container_width=True):
-            result=str(np.random.choice(list(model.classes_),p=[probs[k] for k in model.classes_]))
-            won=(result=='H' and venue=='Hemma') or (result=='A' and venue=='Borta')
-            delta=reward if won else 0 if result=='D' else -penalty
-            x=st.session_state.kick;x['matches']+=1;x['wins']+=int(won);x['points']+=delta
-            x['last']=(result,delta,won)
-            if shared_store is not None:
-                st.session_state.setdefault('statistics_outbox', []).append(kick_event(h,a,result,probs,current_model_version))
-            st.session_state['pending_result'] = dict(mode='kick', home=h, away=a, outcome=result,
-                result='Vinst' if won else 'Oavgjort' if result == 'D' else 'Förlust',
-                delta=delta, points=x['points'])
-            st.rerun()
-        if st.session_state.kick['last']:
-            result,delta,won=st.session_state.kick['last']
-            (st.success if won else st.warning if result=='D' else st.error)(f"{'🏆 Vinst' if won else '🤝 Oavgjort' if result=='D' else '❌ Förlust'} · {delta:+d} poäng")
+        st.header('Kick-off')
+        if x is None:
+            st.subheader('Välj spelsätt')
+            st.caption('Hur många matcher vill du spela?')
+            choice_columns = st.columns(3)
+            length = st.session_state.get('kick_length')
+            for column, count in zip(choice_columns, (10,20,30)):
+                with column, st.container(key=f'round_choice_{count}'):
+                    st.markdown(round_illustration(count), unsafe_allow_html=True)
+                    if st.button(f'{count} matcher', key=f'choose_round_{count}',
+                                 type='primary' if length == count else 'secondary', use_container_width=True):
+                        st.session_state.kick_length = count
+                        st.rerun()
+            if length is not None:
+                selected = st.selectbox('Ditt lag', teams, format_func=team_label, key='kick_team_choice')
+                team_preview(selected, float(initial.loc[selected, 'Elo']))
+                st.caption('Du spelar hela omgången med samma lag. Motståndare och spelplats väljer du inför varje match.')
+                if st.button('Starta omgång', type='primary', use_container_width=True):
+                    st.session_state.kick = dict(team=selected, limit=length, matches=0, wins=0,
+                        draws=0, points=0, last=None, history=[], run_id=new_run_id(),
+                        model_version=current_model_version, event_ids=[])
+                    st.rerun()
+            else:
+                st.caption('Välj 10, 20 eller 30 matcher för att fortsätta till lagvalet.')
+        elif x['matches'] >= x['limit']:
+            st.subheader('Omgången är klar!')
+            st.write(f"**{x['team']} · {x['limit']} matcher**")
+            st.metric('Slutpoäng', f"{x['points']:+,}")
+            st.write(f"{x['wins']} vinster · {x['draws']} oavgjorda · {x['matches']-x['wins']-x['draws']} förluster")
+            with st.expander('Alla matcher i omgången'):
+                st.dataframe(pd.DataFrame(x['history']), hide_index=True, use_container_width=True)
+            if st.button('Ny omgång', type='primary', use_container_width=True):
+                st.session_state.pop('kick', None)
+                st.session_state.pop('pending_result', None)
+                st.rerun()
+        else:
+            own = x['team']
+            st.markdown(f'<div class="season-summary"><span class="season-details"><strong>{escape(own)}</strong>'
+                        f'<span>Låst lag · Match {x["matches"]+1} av {x["limit"]}</span></span>'
+                        f'<span class="streak">{x["points"]:+d} poäng</span></div>', unsafe_allow_html=True)
+            st.progress(x['matches']/x['limit'], text=f"Spelade matcher: {x['matches']} / {x['limit']}")
+            opp=st.selectbox('Motståndare',[t for t in teams if t!=own],format_func=team_label, key='kick_opponent')
+            venue=st.segmented_control('Spelplats',['Hemma','Borta'], default='Hemma', required=True,
+                                       format_func=lambda value: f':material/{"home" if value == "Hemma" else "flight_takeoff"}: {value}',
+                                       key='kick_venue')
+            h,a=(own,opp) if venue=='Hemma' else (opp,own)
+            st.caption(f'Du spelar {"hemma" if venue == "Hemma" else "borta"} med {own}. Hemmalaget visas till vänster.')
+            states=load_history() if (ROOT/'history_last5.csv').exists() else starting_states()
+            if not (ROOT/'history_last5.csv').exists():
+                for t,r in initial.iterrows():
+                    states[t]['form']=[0]*4+[int(r.Form5)]
+                    states[t]['goals']=[0]*4+[int(r.GoalDiff5)]
+            probs=predict(h,a,states)
+            pw=probs['H'] if venue=='Hemma' else probs['A']
+            reward=round(100/pw); penalty=round(100*pw)
+            st.markdown(f'<div class="match-note scoring-note"><span class="score-win"><small>VINST</small><strong>+{reward}</strong></span>'
+                        f'<span class="score-draw"><small>OAVGJORT</small><strong>0</strong></span>'
+                        f'<span class="score-loss"><small>FÖRLUST</small><strong>−{penalty}</strong></span></div>',
+                        unsafe_allow_html=True)
+            with st.container(key='kick_match_card'):
+                match_card(h,a,'VS','KICK-OFF · DIN MATCH',details={h: kickoff_details(h), a: kickoff_details(a)})
+                _, action, _ = st.columns([1,2,1])
+                play_match = action.button('Spela match', icon=':material/play_arrow:', type='primary',
+                    use_container_width=True, disabled=bool(st.session_state.get('pending_result')))
+            probability_cards(h,a,probs,decimals=1)
+            if play_match:
+                result=str(np.random.choice(list(model.classes_),p=[probs[k] for k in model.classes_]))
+                won=(result=='H' and venue=='Hemma') or (result=='A' and venue=='Borta')
+                delta=reward if won else 0 if result=='D' else -penalty
+                x['matches']+=1; x['wins']+=int(won); x['draws']+=int(result=='D'); x['points']+=delta
+                x['last']=(result,delta,won)
+                outcome_label = 'Vinst' if won else 'Oavgjort' if result == 'D' else 'Förlust'
+                x['history'].append({'Match': x['matches'], 'Hemma': h, 'Borta': a,
+                                     'Utfall': outcome_label, 'Poäng': delta, 'Totalpoäng': x['points']})
+                if shared_store is not None:
+                    event = kick_event(h,a,result,probs,x.get('model_version', current_model_version))
+                    st.session_state.setdefault('statistics_outbox', []).append(event)
+                    x.setdefault('event_ids', []).append(event['id'])
+                    if x['matches'] == x['limit'] and x.get('run_id') and len(x['event_ids']) == x['limit']:
+                        st.session_state.setdefault('pending_kick_rounds', []).append(dict(
+                            id=x['run_id'], team=own, length=x['limit'], version=x['model_version'],
+                            match_ids=list(x['event_ids'])))
+                st.session_state['pending_result'] = dict(mode='kick', home=h, away=a, outcome=result,
+                    result=outcome_label, delta=delta, points=x['points'], match_number=x['matches'],
+                    limit=x['limit'], finished=x['matches'] == x['limit'])
+                st.rerun()
+            if x['last']:
+                result,delta,won=x['last']
+                (st.success if won else st.warning if result=='D' else st.error)(f"{'Vinst' if won else 'Oavgjort' if result=='D' else 'Förlust'} · {delta:+d} poäng")
     with right:
-        st.subheader('Din statistik')
-        x=st.session_state.kick if 'kick' in st.session_state else {'matches':0,'wins':0,'points':0}
-        st.metric('Totalpoäng',f"{x['points']:+,}")
-        b1,b2=st.columns(2);b1.metric('Matcher',x['matches']);b2.metric('Vinster',x['wins'])
-        if st.button('Nollställ Kick Off'):
-            st.session_state.kick={'matches':0,'wins':0,'points':0,'last':None};st.rerun()
+        with st.container(key='kick_highscores'):
+            st.subheader(':material/emoji_events: Highscore')
+            st.caption('Högsta slutpoäng · alla spelare · aktuell modell')
+            if shared_store is None:
+                st.info('Highscore kräver databasanslutning. Lokalt behöver Supabase-inställningarna finnas i .streamlit/secrets.toml, precis som i Streamlit Cloud.')
+            else:
+                try:
+                    records = load_highscores(shared_store.url, current_model_version, shared_store)
+                    for count in (10,20,30):
+                        record = next((r for r in records if r['length'] == count), None)
+                        st.metric(f'{count} matcher', f'{record["score"]:+d} poäng' if record else '–')
+                        st.caption(record['team'] if record else 'Inget rekord ännu – spela klart en omgång.')
+                except StatisticsError:
+                    st.warning('Highscore kunde inte hämtas. Kontrollera anslutningen och att SQL-uppdatering 002 är körd.')
+            if st.button('Uppdatera highscore', key='refresh_highscores'):
+                load_highscores.clear()
+                st.rerun()
+            st.caption('Endast avslutade omgångar registreras. Din omgång måste ha spelats med databasanslutning från första matchen.')
+        st.subheader('Din omgång')
+        if x is not None:
+            st.metric('Totalpoäng',f"{x['points']:+,}")
+            b1,b2=st.columns(2); b1.metric('Matcher', f"{x['matches']} / {x['limit']}"); b2.metric('Vinster',x['wins'])
+            if x['matches'] < x['limit']:
+                with st.expander('Avsluta omgången i förtid'):
+                    st.caption('Omgångens totalpoäng nollställs. Redan sparade matcher finns kvar i den gemensamma statistiken.')
+                    if st.button('Avbryt omgång', key='cancel_kick'):
+                        st.session_state.pop('kick',None)
+                        st.session_state.pop('pending_result',None)
+                        st.rerun()
+        else:
+            st.caption('Välj omgångslängd och lag för att börja. Jämför totalpoäng från lika långa omgångar.')
 else:
     missing=[f for f in ('fixtures_2017.csv','historical_scores.csv','history_last5.csv') if not (ROOT/f).exists()]
     if missing:
@@ -791,9 +941,13 @@ else:
             place=int(standings(s['table']).loc[lambda df: df.Lag.eq(s['team']),'#'].iloc[0])
             streak=winning_streak(season_results(s['history'])[s['team']])
             st.markdown(f'<div class="season-summary"><span class="season-details"><strong>{escape(s["team"])}</strong>'
-                        f'<span>Plats {place} · {s["table"][s["team"]]["Pts"]} poäng</span></span>'
+                        f'<span class="season-standing">Plats {place} · {s["table"][s["team"]]["Pts"]} poäng</span></span>'
                         f'<span class="streak">{streak} raka vinster</span></div>',
                         unsafe_allow_html=True)
+            recent = season_results(s['history'])[s['team']][-5:]
+            markers = ''.join(f'<span class="form-dot form-{r}" title="{r}">{r}</span>' for r in recent)
+            if recent:
+                st.markdown(f'<div class="season-form">Senaste fem · äldst till vänster <span class="form-strip">{markers}</span></div>', unsafe_allow_html=True)
             st.caption(f"Dina matcher: {played} / {total}")
             champion, _ = title_status(s['table'], s['team'], fixtures)
             if champion:
@@ -836,8 +990,7 @@ else:
                                     unsafe_allow_html=True)
                         match_card(h,a,'VS',date.strftime('%d/%m %Y'))
                         probability_cards(h,a,p)
-                        st.markdown(f'<div class="match-note">{escape(match_preview(s["team"],opponent,s["team"]==h,p,s["states"]))}</div>',
-                                    unsafe_allow_html=True)
+                        render_match_analysis(s['team'],opponent,s['team']==h,p,s['states'],s['table'])
                         st.caption('Förhandstexten bygger på modellens prognos och lagens fem senaste matcher.')
             else:
                 final=standings(s['table'],s['team'])
@@ -887,13 +1040,11 @@ else:
                                     s['team'] if s else None,differences)
             with actual_tab:
                 render_league_table(real_table,real_form,s['team'] if s else None,differences)
-            st.caption('Δ = simulerade poäng minus verkliga poäng vid samma speldatum, i båda flikarna. Plus betyder fler poäng i din simulering.')
         except (FileNotFoundError, ValueError, KeyError) as e:
             st.warning(f'Verklig jämförelse är inte tillgänglig: {e}')
             render_league_table(simulated,season_results(s['history'] if s else []),s['team'] if s else None)
         if s:
             st.caption(f"Spelade matcher: {sum(r['P'] for r in s['table'].values())//2} / 380")
-            st.caption('Sortering: poäng, målskillnad, gjorda mål. Simuleringen använder historiska målresultat och uppdaterar Elo/form efter varje matchdag.')
 
 # Only an explicit request runs a batch, never a dialog dismissal or ordinary rerun.
 quick_request=st.session_state.pop('quick_request',None)

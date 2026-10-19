@@ -29,6 +29,7 @@ class MemoryStore:
     def __init__(self):
         self.matches, self.completed, self.calls = {}, {}, []
         self.lose_ack = False
+        self.lose_round_ack = False
 
     def ingest(self, payload):
         self.calls.append(copy.deepcopy(payload))
@@ -50,6 +51,16 @@ class MemoryStore:
             'distribution': [{'team':'Arsenal', 'position':1, 'count':1},
                              {'team':'Arsenal', 'position':2, 'count':1}],
             'history': [], 'kick_total': 2, 'history_total': 0, 'completed_seasons': 2}
+
+    def highscores(self, version):
+        return []
+
+    def save_round(self, payload):
+        self.completed.setdefault(payload['id'], payload)
+        if self.lose_round_ack:
+            self.lose_round_ack = False
+            raise StatisticsError('Lost round acknowledgement')
+        return {'ok': True}
 
 
 class PersistenceTests(unittest.TestCase):
@@ -131,6 +142,38 @@ class PersistenceTests(unittest.TestCase):
 
 
 class StatisticsInterfaceTests(unittest.TestCase):
+    def test_completed_round_is_saved_once_after_match_sync(self):
+        store = MemoryStore()
+        app = AppTest.from_file(str(ROOT / 'app.py'), default_timeout=60)
+        app.secrets['statistics'] = dict(enabled=True, url='https://test.supabase.co', secret_key='sb_secret_test')
+        app.session_state['app_started'] = True
+        with patch('statistics_store.SupabaseStore', return_value=store):
+            app.run()
+            next(b for b in app.button if b.key == 'choose_round_10').click().run()
+            next(b for b in app.button if b.label == 'Starta omgång').click().run()
+            state = dict(app.session_state['kick'])
+            events = [kick_event('Arsenal', 'Chelsea', 'D', {'H': .5, 'D': .2, 'A': .3}, state['model_version']) for _ in range(9)]
+            store.ingest({'matches': events})
+            state['event_ids'] = [event['id'] for event in events]
+            state['matches'] = 9
+            state['draws'] = 9
+            app.session_state['kick'] = state
+            store.lose_round_ack = True
+            with patch('numpy.random.choice', return_value='D'):
+                next(b for b in app.button if b.label == 'Spela match').click().run()
+            self.assertFalse(app.exception)
+            self.assertEqual(len(store.matches), 10)
+            self.assertEqual(len(store.completed), 1)
+            payload = store.completed[state['run_id']]
+            self.assertEqual(payload['length'], 10)
+            self.assertEqual(len(set(payload['match_ids'])), 10)
+            self.assertTrue(all(event in store.matches for event in payload['match_ids']))
+            self.assertEqual(len(app.session_state['pending_kick_rounds']), 1)
+            next(b for b in app.button if b.key == 'retry_statistics').click().run()
+            self.assertEqual(app.session_state['pending_kick_rounds'], [])
+            app.run()
+            self.assertEqual(len(store.completed), 1)
+
     def test_failed_write_retry_does_not_duplicate_match(self):
         store = MemoryStore()
         store.lose_ack = True
@@ -139,6 +182,8 @@ class StatisticsInterfaceTests(unittest.TestCase):
         app.session_state['app_started'] = True
         with patch('statistics_store.SupabaseStore', return_value=store):
             app.run()
+            next(b for b in app.button if b.key == 'choose_round_10').click().run()
+            next(b for b in app.button if b.label.startswith('Starta om')).click().run()
             next(b for b in app.button if b.label == 'Spela match').click().run()
             self.assertTrue(app.session_state['statistics_error'])
             self.assertEqual(len(app.session_state['statistics_outbox']), 1)
@@ -167,11 +212,13 @@ class StatisticsInterfaceTests(unittest.TestCase):
         app = AppTest.from_file(str(ROOT / 'app.py'), default_timeout=60)
         app.session_state['app_started'] = True
         app.run()
-        app.radio[0].set_value('Statistik').run()
+        app.get('button_group')[0].set_value('Statistik').run()
         self.assertFalse(app.exception)
         self.assertTrue(any('inte aktiverad' in x.value for x in app.info))
-        self.assertEqual([x.label for x in app.tabs], ['Kick Off-statistik', 'Säsongsstatistik'])
-        app.radio[0].set_value('Kick Off').run()
+        self.assertEqual([x.label for x in app.tabs], ['Kick-off-statistik', 'Säsongsstatistik'])
+        app.get('button_group')[0].set_value('Kick-off').run()
+        next(b for b in app.button if b.key == 'choose_round_10').click().run()
+        next(b for b in app.button if b.label.startswith('Starta om')).click().run()
         next(b for b in app.button if b.label == 'Spela match').click().run()
         self.assertFalse(app.exception)
         self.assertEqual(app.session_state['kick']['matches'], 1)
@@ -183,17 +230,21 @@ class StatisticsInterfaceTests(unittest.TestCase):
         app.session_state['app_started'] = True
         with patch('statistics_store.SupabaseStore', return_value=store):
             app.run()
+            next(b for b in app.button if b.key == 'choose_round_10').click().run()
+            next(b for b in app.button if b.label.startswith('Starta om')).click().run()
             next(b for b in app.button if b.label == 'Spela match').click().run()
             self.assertFalse(app.exception)
             self.assertEqual(len(store.matches), 1)
             next(b for b in app.button if b.key == 'close_result').click().run()
             app.run()
             self.assertEqual(len(store.matches), 1)
-            app.radio[0].set_value('Statistik').run()
+            app.get('button_group')[0].set_value('Statistik').run()
             self.assertFalse(app.exception)
-            self.assertEqual(len(app.dataframe), 2)
-            table = app.dataframe[1].value
-            self.assertEqual(table.loc[table.Lag.eq('Arsenal'), 'Vanligaste placering'].iloc[0], '1, 2')
+            tables = [m.value for m in app.markdown if m.value.startswith('<div class="league-wrap statistics-table-wrap">')]
+            self.assertEqual(len(tables), 2)
+            self.assertIn('Vanligaste placering', tables[1])
+            self.assertIn('1, 2', tables[1])
+            self.assertNotIn('None', ''.join(tables))
 
 
 if __name__ == '__main__':
