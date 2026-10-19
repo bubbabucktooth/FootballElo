@@ -40,7 +40,7 @@ with brand:
                 st.session_state.app_started = False
                 st.rerun()
 with about:
-    with st.expander('Om appen'):
+    with st.expander('Om appen'), st.container(key='about_copy'):
         st.markdown('''# BEAT THE MODEL
 
 ### Fotboll är oförutsägbart. Men hur mycket kan vi faktiskt förutse?
