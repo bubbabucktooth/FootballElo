@@ -161,6 +161,34 @@ class PersistenceTests(unittest.TestCase):
 
 
 class StatisticsInterfaceTests(unittest.TestCase):
+    def test_placement_chart_changes_data_when_team_changes(self):
+        from statistics_page import st as page_st
+        store = MemoryStore()
+        store.url = 'https://placement-test.supabase.co/rest/v1/rpc/'
+        original_statistics = store.statistics
+        def distinct_distributions(*args):
+            data = original_statistics(*args)
+            data['distribution'] = [{'team': 'Arsenal', 'position': 1, 'count': 2},
+                                    {'team': 'Chelsea', 'position': 5, 'count': 2}]
+            return data
+        store.statistics = distinct_distributions
+        app = AppTest.from_file(str(ROOT / 'app.py'), default_timeout=60)
+        app.secrets['statistics'] = dict(enabled=True, url='https://placement-test.supabase.co', secret_key='sb_secret_test')
+        app.session_state['app_started'] = True
+        with patch('statistics_store.SupabaseStore', return_value=store), \
+             patch('statistics_page.st.vega_lite_chart', wraps=page_st.vega_lite_chart) as charts:
+            app.run()
+            app.get('button_group')[0].set_value('Statistik').run()
+            first = charts.call_args.args[0]
+            first_key = charts.call_args.kwargs['key']
+            self.assertEqual(first.loc[first.Placering.eq(1), 'Säsonger'].iloc[0], 2)
+            next(s for s in app.selectbox if s.key == 'stats_distribution_team').set_value('Chelsea').run()
+            second = charts.call_args.args[0]
+            self.assertEqual(second.loc[second.Placering.eq(1), 'Säsonger'].iloc[0], 0)
+            self.assertEqual(second.loc[second.Placering.eq(5), 'Säsonger'].iloc[0], 2)
+            self.assertNotEqual(first_key, charts.call_args.kwargs['key'])
+            self.assertFalse(app.exception)
+
     def test_statistics_filters_are_independent_and_next_to_their_views(self):
         app = AppTest.from_file(str(ROOT / 'app.py'), default_timeout=60)
         app.secrets['statistics'] = dict(enabled=True, url='https://test.supabase.co', secret_key='sb_secret_test')

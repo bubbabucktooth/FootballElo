@@ -211,6 +211,7 @@ def render_statistics(store, teams, current_version, actual_points):
                 st.subheader(f'Placeringsfördelning · {history_team}')
                 frequencies = {int(r['position']): int(r['count']) for r in data.get('distribution', []) if r['team'] == history_team}
                 if frequencies:
+                    st.caption(f'Underlag för {history_team}: {sum(frequencies.values())} avslutade säsonger.')
                     chart = pd.DataFrame({'Placering': list(range(1, 21)),
                                           'Säsonger': [frequencies.get(i, 0) for i in range(1, 21)]})
                     st.vega_lite_chart(chart, {
@@ -226,7 +227,10 @@ def render_statistics(store, teams, current_version, actual_points):
                         'config': {'font': 'Poppins, Segoe UI, sans-serif', 'view': {'stroke': None},
                                    'axis': {'labelColor': '#d6c9e8', 'titleColor': '#f4f1fc',
                                             'gridColor': '#ffffff12', 'domainColor': '#665180'}}
-                    }, use_container_width=True, theme=None)
+                    }, use_container_width=True, theme=None,
+                        key=f'placement_distribution_{selected_version}_{history_team}')
+                    with st.expander('Visa placeringarna som siffror'):
+                        st.dataframe(chart, hide_index=True, use_container_width=True)
                 else:
                     st.write('Ingen avslutad säsong har registrerats ännu.')
             with table_tab:
