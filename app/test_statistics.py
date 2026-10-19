@@ -7,9 +7,11 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 
 import pandas as pd
+import altair as alt
 from streamlit.testing.v1 import AppTest
 from statistics_store import (StatisticsError, SupabaseStore, kick_event, final_rows,
                               season_payload, sync_season, flush_kicks, new_run_id, probabilities)
+from statistics_page import season_overview_charts
 
 ROOT = Path(__file__).parent
 
@@ -64,6 +66,23 @@ class MemoryStore:
 
 
 class PersistenceTests(unittest.TestCase):
+    def test_season_charts_values_schema_and_empty_state(self):
+        rows = [dict(Lag=team, Säsonger=4, Seriesegrar=titles,
+                     Poängsnitt=points, **{'Verkliga poäng': 60, 'Δ poängsnitt': points-60})
+                for team, titles, points in [('Arsenal', 3, 70), ('Chelsea', 1, 50)]]
+        with patch('statistics_page.st') as ui:
+            season_overview_charts(rows, 4)
+            self.assertEqual(ui.vega_lite_chart.call_count, 2)
+            for call in ui.vega_lite_chart.call_args_list:
+                frame, spec = call.args
+                self.assertEqual(frame['Titelandel (%)'].tolist(), [75, 25])
+                self.assertEqual(frame['Δ poängsnitt'].tolist(), [10, -10])
+                alt.Chart.from_dict({**spec, 'data': {'values': frame.to_dict('records')}})
+            ui.reset_mock()
+            season_overview_charts([], 0)
+            ui.vega_lite_chart.assert_not_called()
+            ui.info.assert_called_once()
+
     def test_kick_identity_and_retry_after_lost_ack(self):
         event = kick_event('Arsenal', 'Chelsea', 'H', {'H': .5, 'D': .2, 'A': .3}, 'v1')
         other = kick_event('Arsenal', 'Chelsea', 'H', {'H': .5, 'D': .2, 'A': .3}, 'v1')
@@ -142,6 +161,27 @@ class PersistenceTests(unittest.TestCase):
 
 
 class StatisticsInterfaceTests(unittest.TestCase):
+    def test_statistics_filters_are_independent_and_next_to_their_views(self):
+        app = AppTest.from_file(str(ROOT / 'app.py'), default_timeout=60)
+        app.secrets['statistics'] = dict(enabled=True, url='https://test.supabase.co', secret_key='sb_secret_test')
+        app.session_state['app_started'] = True
+        with patch('statistics_store.SupabaseStore', return_value=MemoryStore()):
+            app.run()
+            app.get('button_group')[0].set_value('Statistik').run()
+            self.assertFalse(app.exception)
+            next(s for s in app.selectbox if s.key == 'stats_season_version').set_value('Alla modellversioner').run()
+            self.assertEqual(next(s for s in app.selectbox if s.key == 'stats_kick_version').value, 'Aktuell modell')
+            next(s for s in app.selectbox if s.key == 'stats_history_team').set_value('Chelsea').run()
+            self.assertEqual(next(s for s in app.selectbox if s.key == 'stats_distribution_team').value, 'Arsenal')
+            app.session_state['stats_page'] = 2
+            next(s for s in app.selectbox if s.key == 'stats_distribution_team').set_value('Tottenham').run()
+            self.assertEqual(app.session_state['stats_page'], 2)
+            next(s for s in app.selectbox if s.key == 'stats_venue').set_value('Borta').run()
+            self.assertEqual(app.session_state['stats_page'], 0)
+            self.assertEqual(next(s for s in app.selectbox if s.key == 'stats_history_team').value, 'Chelsea')
+            self.assertEqual(next(s for s in app.selectbox if s.key == 'stats_season_version').value, 'Alla modellversioner')
+            self.assertFalse(app.exception)
+
     def test_completed_round_is_saved_once_after_match_sync(self):
         store = MemoryStore()
         app = AppTest.from_file(str(ROOT / 'app.py'), default_timeout=60)
@@ -215,7 +255,9 @@ class StatisticsInterfaceTests(unittest.TestCase):
         app.get('button_group')[0].set_value('Statistik').run()
         self.assertFalse(app.exception)
         self.assertTrue(any('inte aktiverad' in x.value for x in app.info))
-        self.assertEqual([x.label for x in app.tabs], ['Kick-off-statistik', 'Säsongsstatistik'])
+        self.assertEqual([x.label for x in app.tabs],
+                         ['Kick-off-statistik', 'Lagstatistik', 'Matchhistorik',
+                          'Säsongsstatistik', 'Översikt', 'Tabell'])
         app.get('button_group')[0].set_value('Kick-off').run()
         next(b for b in app.button if b.key == 'choose_round_10').click().run()
         next(b for b in app.button if b.label.startswith('Starta om')).click().run()
@@ -246,9 +288,11 @@ class StatisticsInterfaceTests(unittest.TestCase):
             self.assertIn('1, 2', tables[1])
             self.assertNotIn('None', ''.join(tables))
             charts = app.get('vega_lite_chart')
-            self.assertEqual(len(charts), 1)
-            padding = json.loads(charts[0].proto.spec)['padding']
-            self.assertEqual(padding, dict(top=20, right=20, bottom=20, left=20))
+            self.assertEqual(len(charts), 3)
+            for chart in charts:
+                self.assertEqual(json.loads(chart.proto.spec)['padding'],
+                                 dict(top=20, right=20, bottom=20, left=20))
+            self.assertTrue(any('Underlag: 2 avslutade' in c.value for c in app.caption))
             next(s for s in app.selectbox if s.key == 'kick_statistics_sort').set_value('Matcher').run()
             for direction, first, second in [('Stigande', 'Bournemouth', 'Arsenal'),
                                              ('Fallande', 'Arsenal', 'Bournemouth')]:
