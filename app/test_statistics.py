@@ -245,6 +245,10 @@ class StatisticsInterfaceTests(unittest.TestCase):
             self.assertIn('Vanligaste placering', tables[1])
             self.assertIn('1, 2', tables[1])
             self.assertNotIn('None', ''.join(tables))
+            charts = app.get('vega_lite_chart')
+            self.assertEqual(len(charts), 1)
+            padding = json.loads(charts[0].proto.spec)['padding']
+            self.assertEqual(padding, dict(top=20, right=20, bottom=20, left=20))
 
 
 if __name__ == '__main__':

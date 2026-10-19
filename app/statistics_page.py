@@ -136,7 +136,8 @@ def render_statistics(store, teams, current_version, actual_points):
             chart = pd.DataFrame({'Placering': list(range(1, 21)),
                                   'Säsonger': [frequencies.get(i, 0) for i in range(1, 21)]})
             st.vega_lite_chart(chart, {
-                'background': '#201831', 'padding': 20,
+                'background': '#201831',
+                'padding': {'top': 20, 'right': 20, 'bottom': 20, 'left': 20},
                 'mark': {'type': 'bar', 'color': '#a687eb', 'cornerRadiusTopLeft': 3, 'cornerRadiusTopRight': 3},
                 'encoding': {
                     'x': {'field': 'Placering', 'type': 'ordinal', 'sort': list(range(1, 21)),
