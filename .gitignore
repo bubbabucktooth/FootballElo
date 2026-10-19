@@ -1,0 +1,25 @@
+# Local Python environments and generated caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+
+# Credentials and local configuration
+.env
+.env.*
+!.env.example
+**/.streamlit/secrets.toml
+.aws/
+
+# Editor and operating-system files
+.vscode/
+*.code-workspace
+.DS_Store
+Thumbs.db
+
+# Generated design preview; not used by the application
+app/assets/player-style-preview.png

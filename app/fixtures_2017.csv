@@ -1,0 +1,381 @@
+Date,HomeTeam,AwayTeam
+2017-08-11,Arsenal,Leicester
+2017-08-12,Brighton,Man City
+2017-08-12,Chelsea,Burnley
+2017-08-12,Crystal Palace,Huddersfield
+2017-08-12,Everton,Stoke
+2017-08-12,Southampton,Swansea
+2017-08-12,Watford,Liverpool
+2017-08-12,West Brom,Bournemouth
+2017-08-13,Man United,West Ham
+2017-08-13,Newcastle,Tottenham
+2017-08-19,Swansea,Man United
+2017-08-19,Stoke,Arsenal
+2017-08-19,Liverpool,Crystal Palace
+2017-08-19,Southampton,West Ham
+2017-08-19,Burnley,West Brom
+2017-08-19,Bournemouth,Watford
+2017-08-19,Leicester,Brighton
+2017-08-20,Huddersfield,Newcastle
+2017-08-20,Tottenham,Chelsea
+2017-08-21,Man City,Everton
+2017-08-26,Bournemouth,Man City
+2017-08-26,Crystal Palace,Swansea
+2017-08-26,Huddersfield,Southampton
+2017-08-26,Man United,Leicester
+2017-08-26,Newcastle,West Ham
+2017-08-26,Watford,Brighton
+2017-08-27,West Brom,Stoke
+2017-08-27,Tottenham,Burnley
+2017-08-27,Chelsea,Everton
+2017-08-27,Liverpool,Arsenal
+2017-09-09,Arsenal,Bournemouth
+2017-09-09,Brighton,West Brom
+2017-09-09,Everton,Tottenham
+2017-09-09,Leicester,Chelsea
+2017-09-09,Man City,Liverpool
+2017-09-09,Southampton,Watford
+2017-09-09,Stoke,Man United
+2017-09-10,Burnley,Crystal Palace
+2017-09-10,Swansea,Newcastle
+2017-09-11,West Ham,Huddersfield
+2017-09-15,Bournemouth,Brighton
+2017-09-16,Crystal Palace,Southampton
+2017-09-16,Huddersfield,Leicester
+2017-09-16,Liverpool,Burnley
+2017-09-16,Newcastle,Stoke
+2017-09-16,Tottenham,Swansea
+2017-09-16,Watford,Man City
+2017-09-16,West Brom,West Ham
+2017-09-17,Chelsea,Arsenal
+2017-09-17,Man United,Everton
+2017-09-23,Swansea,Watford
+2017-09-23,West Ham,Tottenham
+2017-09-23,Stoke,Chelsea
+2017-09-23,Southampton,Man United
+2017-09-23,Man City,Crystal Palace
+2017-09-23,Leicester,Liverpool
+2017-09-23,Everton,Bournemouth
+2017-09-23,Burnley,Huddersfield
+2017-09-24,Brighton,Newcastle
+2017-09-25,Arsenal,West Brom
+2017-09-30,West Brom,Watford
+2017-09-30,Stoke,Southampton
+2017-09-30,Man United,Crystal Palace
+2017-09-30,West Ham,Swansea
+2017-09-30,Chelsea,Man City
+2017-09-30,Bournemouth,Leicester
+2017-09-30,Huddersfield,Tottenham
+2017-10-01,Arsenal,Brighton
+2017-10-01,Everton,Burnley
+2017-10-01,Newcastle,Liverpool
+2017-10-14,Burnley,West Ham
+2017-10-14,Crystal Palace,Chelsea
+2017-10-14,Liverpool,Man United
+2017-10-14,Man City,Stoke
+2017-10-14,Swansea,Huddersfield
+2017-10-14,Tottenham,Bournemouth
+2017-10-14,Watford,Arsenal
+2017-10-15,Southampton,Newcastle
+2017-10-15,Brighton,Everton
+2017-10-16,Leicester,West Brom
+2017-10-20,West Ham,Brighton
+2017-10-21,Chelsea,Watford
+2017-10-21,Huddersfield,Man United
+2017-10-21,Man City,Burnley
+2017-10-21,Newcastle,Crystal Palace
+2017-10-21,Southampton,West Brom
+2017-10-21,Stoke,Bournemouth
+2017-10-21,Swansea,Leicester
+2017-10-22,Everton,Arsenal
+2017-10-22,Tottenham,Liverpool
+2017-10-28,West Brom,Man City
+2017-10-28,Watford,Stoke
+2017-10-28,Liverpool,Huddersfield
+2017-10-28,Man United,Tottenham
+2017-10-28,Bournemouth,Chelsea
+2017-10-28,Arsenal,Swansea
+2017-10-28,Crystal Palace,West Ham
+2017-10-29,Brighton,Southampton
+2017-10-29,Leicester,Everton
+2017-10-30,Burnley,Newcastle
+2017-11-04,Huddersfield,West Brom
+2017-11-04,Newcastle,Bournemouth
+2017-11-04,Southampton,Burnley
+2017-11-04,Stoke,Leicester
+2017-11-04,Swansea,Brighton
+2017-11-04,West Ham,Liverpool
+2017-11-05,Man City,Arsenal
+2017-11-05,Tottenham,Crystal Palace
+2017-11-05,Everton,Watford
+2017-11-05,Chelsea,Man United
+2017-11-18,Arsenal,Tottenham
+2017-11-18,Bournemouth,Huddersfield
+2017-11-18,Burnley,Swansea
+2017-11-18,Crystal Palace,Everton
+2017-11-18,Leicester,Man City
+2017-11-18,Liverpool,Southampton
+2017-11-18,Man United,Newcastle
+2017-11-18,West Brom,Chelsea
+2017-11-19,Watford,West Ham
+2017-11-20,Brighton,Stoke
+2017-11-24,West Ham,Leicester
+2017-11-25,Crystal Palace,Stoke
+2017-11-25,Liverpool,Chelsea
+2017-11-25,Man United,Brighton
+2017-11-25,Newcastle,Watford
+2017-11-25,Swansea,Bournemouth
+2017-11-25,Tottenham,West Brom
+2017-11-26,Burnley,Arsenal
+2017-11-26,Huddersfield,Man City
+2017-11-26,Southampton,Everton
+2017-11-28,West Brom,Newcastle
+2017-11-28,Watford,Man United
+2017-11-28,Brighton,Crystal Palace
+2017-11-28,Leicester,Tottenham
+2017-11-29,Arsenal,Huddersfield
+2017-11-29,Bournemouth,Burnley
+2017-11-29,Chelsea,Swansea
+2017-11-29,Everton,West Ham
+2017-11-29,Man City,Southampton
+2017-11-29,Stoke,Liverpool
+2017-12-02,Chelsea,Newcastle
+2017-12-02,West Brom,Crystal Palace
+2017-12-02,Watford,Tottenham
+2017-12-02,Stoke,Swansea
+2017-12-02,Brighton,Liverpool
+2017-12-02,Everton,Huddersfield
+2017-12-02,Arsenal,Man United
+2017-12-02,Leicester,Burnley
+2017-12-03,Bournemouth,Southampton
+2017-12-03,Man City,West Ham
+2017-12-09,Swansea,West Brom
+2017-12-09,Tottenham,Stoke
+2017-12-09,Newcastle,Leicester
+2017-12-09,West Ham,Chelsea
+2017-12-09,Crystal Palace,Bournemouth
+2017-12-09,Burnley,Watford
+2017-12-09,Huddersfield,Brighton
+2017-12-10,Man United,Man City
+2017-12-10,Southampton,Arsenal
+2017-12-10,Liverpool,Everton
+2017-12-12,Huddersfield,Chelsea
+2017-12-12,Burnley,Stoke
+2017-12-12,Crystal Palace,Watford
+2017-12-13,Liverpool,West Brom
+2017-12-13,Man United,Bournemouth
+2017-12-13,Newcastle,Everton
+2017-12-13,Southampton,Leicester
+2017-12-13,Swansea,Man City
+2017-12-13,Tottenham,Brighton
+2017-12-13,West Ham,Arsenal
+2017-12-16,Watford,Huddersfield
+2017-12-16,Stoke,West Ham
+2017-12-16,Man City,Tottenham
+2017-12-16,Leicester,Crystal Palace
+2017-12-16,Chelsea,Southampton
+2017-12-16,Brighton,Burnley
+2017-12-16,Arsenal,Newcastle
+2017-12-17,Bournemouth,Liverpool
+2017-12-17,West Brom,Man United
+2017-12-18,Everton,Swansea
+2017-12-22,Arsenal,Liverpool
+2017-12-23,West Ham,Newcastle
+2017-12-23,Stoke,West Brom
+2017-12-23,Southampton,Huddersfield
+2017-12-23,Man City,Bournemouth
+2017-12-23,Swansea,Crystal Palace
+2017-12-23,Everton,Chelsea
+2017-12-23,Burnley,Tottenham
+2017-12-23,Leicester,Man United
+2017-12-23,Brighton,Watford
+2017-12-26,West Brom,Everton
+2017-12-26,Watford,Leicester
+2017-12-26,Tottenham,Southampton
+2017-12-26,Man United,Burnley
+2017-12-26,Huddersfield,Stoke
+2017-12-26,Chelsea,Brighton
+2017-12-26,Bournemouth,West Ham
+2017-12-26,Liverpool,Swansea
+2017-12-27,Newcastle,Man City
+2017-12-28,Crystal Palace,Arsenal
+2017-12-30,Newcastle,Brighton
+2017-12-30,Watford,Swansea
+2017-12-30,Man United,Southampton
+2017-12-30,Bournemouth,Everton
+2017-12-30,Huddersfield,Burnley
+2017-12-30,Chelsea,Stoke
+2017-12-30,Liverpool,Leicester
+2017-12-31,Crystal Palace,Man City
+2017-12-31,West Brom,Arsenal
+2018-01-01,Brighton,Bournemouth
+2018-01-01,Burnley,Liverpool
+2018-01-01,Everton,Man United
+2018-01-01,Leicester,Huddersfield
+2018-01-01,Stoke,Newcastle
+2018-01-02,West Ham,West Brom
+2018-01-02,Swansea,Tottenham
+2018-01-02,Man City,Watford
+2018-01-02,Southampton,Crystal Palace
+2018-01-03,Arsenal,Chelsea
+2018-01-04,Tottenham,West Ham
+2018-01-13,Chelsea,Leicester
+2018-01-13,Crystal Palace,Burnley
+2018-01-13,Huddersfield,West Ham
+2018-01-13,Newcastle,Swansea
+2018-01-13,Tottenham,Everton
+2018-01-13,Watford,Southampton
+2018-01-13,West Brom,Brighton
+2018-01-14,Liverpool,Man City
+2018-01-14,Bournemouth,Arsenal
+2018-01-15,Man United,Stoke
+2018-01-20,Arsenal,Crystal Palace
+2018-01-20,Brighton,Chelsea
+2018-01-20,Burnley,Man United
+2018-01-20,Everton,West Brom
+2018-01-20,Leicester,Watford
+2018-01-20,Man City,Newcastle
+2018-01-20,Stoke,Huddersfield
+2018-01-20,West Ham,Bournemouth
+2018-01-21,Southampton,Tottenham
+2018-01-22,Swansea,Liverpool
+2018-01-30,West Ham,Crystal Palace
+2018-01-30,Swansea,Arsenal
+2018-01-30,Huddersfield,Liverpool
+2018-01-31,Chelsea,Bournemouth
+2018-01-31,Everton,Leicester
+2018-01-31,Man City,West Brom
+2018-01-31,Newcastle,Burnley
+2018-01-31,Southampton,Brighton
+2018-01-31,Stoke,Watford
+2018-01-31,Tottenham,Man United
+2018-02-03,Bournemouth,Stoke
+2018-02-03,West Brom,Southampton
+2018-02-03,Man United,Huddersfield
+2018-02-03,Leicester,Swansea
+2018-02-03,Arsenal,Everton
+2018-02-03,Brighton,West Ham
+2018-02-03,Burnley,Man City
+2018-02-04,Liverpool,Tottenham
+2018-02-04,Crystal Palace,Newcastle
+2018-02-05,Watford,Chelsea
+2018-02-10,Tottenham,Arsenal
+2018-02-10,Swansea,Burnley
+2018-02-10,West Ham,Watford
+2018-02-10,Man City,Leicester
+2018-02-10,Everton,Crystal Palace
+2018-02-10,Stoke,Brighton
+2018-02-11,Southampton,Liverpool
+2018-02-11,Huddersfield,Bournemouth
+2018-02-11,Newcastle,Man United
+2018-02-12,Chelsea,West Brom
+2018-02-24,Bournemouth,Newcastle
+2018-02-24,Brighton,Swansea
+2018-02-24,Burnley,Southampton
+2018-02-24,Leicester,Stoke
+2018-02-24,Liverpool,West Ham
+2018-02-24,Watford,Everton
+2018-02-24,West Brom,Huddersfield
+2018-02-25,Crystal Palace,Tottenham
+2018-02-25,Man United,Chelsea
+2018-03-01,Arsenal,Man City
+2018-03-03,Watford,West Brom
+2018-03-03,Tottenham,Huddersfield
+2018-03-03,Swansea,West Ham
+2018-03-03,Burnley,Everton
+2018-03-03,Liverpool,Newcastle
+2018-03-03,Leicester,Bournemouth
+2018-03-03,Southampton,Stoke
+2018-03-04,Brighton,Arsenal
+2018-03-04,Man City,Chelsea
+2018-03-05,Crystal Palace,Man United
+2018-03-10,West Brom,Leicester
+2018-03-10,West Ham,Burnley
+2018-03-10,Newcastle,Southampton
+2018-03-10,Huddersfield,Swansea
+2018-03-10,Everton,Brighton
+2018-03-10,Chelsea,Crystal Palace
+2018-03-10,Man United,Liverpool
+2018-03-11,Arsenal,Watford
+2018-03-11,Bournemouth,Tottenham
+2018-03-12,Stoke,Man City
+2018-03-17,Bournemouth,West Brom
+2018-03-17,Huddersfield,Crystal Palace
+2018-03-17,Liverpool,Watford
+2018-03-17,Stoke,Everton
+2018-03-31,Crystal Palace,Liverpool
+2018-03-31,West Ham,Southampton
+2018-03-31,West Brom,Burnley
+2018-03-31,Watford,Bournemouth
+2018-03-31,Brighton,Leicester
+2018-03-31,Man United,Swansea
+2018-03-31,Everton,Man City
+2018-03-31,Newcastle,Huddersfield
+2018-04-01,Chelsea,Tottenham
+2018-04-01,Arsenal,Stoke
+2018-04-07,Watford,Burnley
+2018-04-07,Stoke,Tottenham
+2018-04-07,West Brom,Swansea
+2018-04-07,Man City,Man United
+2018-04-07,Everton,Liverpool
+2018-04-07,Leicester,Newcastle
+2018-04-07,Brighton,Huddersfield
+2018-04-07,Bournemouth,Crystal Palace
+2018-04-08,Arsenal,Southampton
+2018-04-08,Chelsea,West Ham
+2018-04-14,Tottenham,Man City
+2018-04-14,Southampton,Chelsea
+2018-04-14,Liverpool,Bournemouth
+2018-04-14,Swansea,Everton
+2018-04-14,Crystal Palace,Brighton
+2018-04-14,Burnley,Leicester
+2018-04-14,Huddersfield,Watford
+2018-04-15,Man United,West Brom
+2018-04-15,Newcastle,Arsenal
+2018-04-16,West Ham,Stoke
+2018-04-17,Brighton,Tottenham
+2018-04-18,Bournemouth,Man United
+2018-04-19,Burnley,Chelsea
+2018-04-19,Leicester,Southampton
+2018-04-21,West Brom,Liverpool
+2018-04-21,Watford,Crystal Palace
+2018-04-22,Stoke,Burnley
+2018-04-22,Man City,Swansea
+2018-04-22,Arsenal,West Ham
+2018-04-23,Everton,Newcastle
+2018-04-28,Burnley,Brighton
+2018-04-28,Crystal Palace,Leicester
+2018-04-28,Huddersfield,Everton
+2018-04-28,Liverpool,Stoke
+2018-04-28,Newcastle,West Brom
+2018-04-28,Southampton,Bournemouth
+2018-04-28,Swansea,Chelsea
+2018-04-29,West Ham,Man City
+2018-04-29,Man United,Arsenal
+2018-04-30,Tottenham,Watford
+2018-05-04,Brighton,Man United
+2018-05-05,Bournemouth,Swansea
+2018-05-05,Everton,Southampton
+2018-05-05,Leicester,West Ham
+2018-05-05,Stoke,Crystal Palace
+2018-05-05,Watford,Newcastle
+2018-05-05,West Brom,Tottenham
+2018-05-06,Chelsea,Liverpool
+2018-05-06,Arsenal,Burnley
+2018-05-06,Man City,Huddersfield
+2018-05-08,Swansea,Southampton
+2018-05-09,Leicester,Arsenal
+2018-05-09,Man City,Brighton
+2018-05-09,Chelsea,Huddersfield
+2018-05-09,Tottenham,Newcastle
+2018-05-10,West Ham,Man United
+2018-05-13,Southampton,Man City
+2018-05-13,Newcastle,Chelsea
+2018-05-13,Swansea,Stoke
+2018-05-13,Man United,Watford
+2018-05-13,Tottenham,Leicester
+2018-05-13,Huddersfield,Arsenal
+2018-05-13,Crystal Palace,West Brom
+2018-05-13,Burnley,Bournemouth
+2018-05-13,Liverpool,Brighton
+2018-05-13,West Ham,Everton
