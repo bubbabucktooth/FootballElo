@@ -214,7 +214,7 @@ hr { border-color: var(--border) !important; margin: var(--space-2) 0 !important
 .league-table tbody tr:nth-child(4) td { border-bottom: 1px solid #8bbcff50; }
 .statistics-table { table-layout: auto; min-width: 760px; }
 .statistics-table th { white-space: nowrap; word-break: normal; overflow-wrap: normal; min-width: 90px; }
-.statistics-table th, .statistics-table td { padding: 10px 12px; }
+.statistics-table th, .statistics-table td { padding: 9px 8px; }
 .statistics-table th:first-child, .statistics-table td:first-child { text-align: left; min-width: 150px; }
 .statistics-table th:nth-child(2), .statistics-table td:nth-child(2) { text-align: center; }
 .statistics-table tbody tr:nth-child(4) td, .statistics-table tbody tr:nth-child(18) td { border-color: #ffffff0b; }

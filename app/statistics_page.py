@@ -1,36 +1,8 @@
 """Read-only shared statistics UI. Aggregation is performed by PostgreSQL."""
 import pandas as pd
 import streamlit as st
-from html import escape
+from ui_tables import render_table as statistics_table
 from statistics_store import StatisticsError
-
-
-def statistics_table(frame, key, selected=None, formats=None):
-    """Use the league table's presentation with explicit sorting and CSV export."""
-    formats = formats or {}
-    sort_column, sort_direction = st.columns([2, 1])
-    with sort_column:
-        column = st.selectbox('Sortera efter', list(frame.columns), key=f'{key}_sort')
-    with sort_direction:
-        direction = st.segmented_control('Ordning', ['Stigande', 'Fallande'], default='Stigande',
-                                         required=True, key=f'{key}_direction')
-    descending = direction == 'Fallande'
-    with st.expander('Exportera tabellen'):
-        st.download_button('Hämta CSV', frame.to_csv(index=False).encode('utf-8-sig'),
-                           file_name=f'{key}.csv', mime='text/csv', key=f'{key}_csv')
-    ordered = frame.sort_values(column, ascending=not descending, na_position='last', kind='stable')
-    headers = ''.join(f'<th scope="col">{escape(str(c))}</th>' for c in frame.columns)
-    rows = []
-    for record in ordered.to_dict('records'):
-        cells = []
-        for name, value in record.items():
-            text = '–' if pd.isna(value) else formats[name].format(value) if name in formats else str(value)
-            cells.append(f'<td>{escape(text)}</td>')
-        own = 'own-team' if record.get('Lag') == selected else ''
-        rows.append(f'<tr class="{own}">' + ''.join(cells) + '</tr>')
-    st.markdown('<div class="league-wrap statistics-table-wrap"><table class="league-table statistics-table">'
-                '<thead><tr>' + headers + '</tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div>',
-                unsafe_allow_html=True)
 
 
 @st.cache_data(ttl=30, show_spinner=False)
@@ -233,7 +205,7 @@ def render_statistics(store, teams, current_version, actual_points):
                     }, use_container_width=True, theme=None,
                         key=f'placement_distribution_{selected_version}_{history_team}')
                     with st.expander('Visa placeringarna som siffror'):
-                        st.dataframe(chart, hide_index=True, use_container_width=True)
+                        statistics_table(chart, 'placement_values')
                 else:
                     st.write('Ingen avslutad säsong har registrerats ännu.')
             with table_tab:

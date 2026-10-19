@@ -317,9 +317,9 @@ class StatisticsInterfaceTests(unittest.TestCase):
             app.get('button_group')[0].set_value('Statistik').run()
             self.assertFalse(app.exception)
             tables = [m.value for m in app.markdown if m.value.startswith('<div class="league-wrap statistics-table-wrap">')]
-            self.assertEqual(len(tables), 2)
-            self.assertIn('Vanligaste placering', tables[1])
-            self.assertIn('1, 2', tables[1])
+            self.assertEqual(len(tables), 3)
+            season_table = next(t for t in tables if 'Vanligaste placering' in t)
+            self.assertIn('1, 2', season_table)
             self.assertNotIn('None', ''.join(tables))
             charts = app.get('vega_lite_chart')
             self.assertEqual(len(charts), 3)

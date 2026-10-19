@@ -10,6 +10,7 @@ import streamlit as st
 from statistics_store import (SupabaseStore, StatisticsError, model_version, new_run_id,
                               kick_event, sync_season, flush_kicks)
 from statistics_page import render_statistics
+from ui_tables import render_table
 
 ROOT = Path(__file__).resolve().parent
 FEATURES = ['EloDiff_Enhanced', 'FormDiff', 'GoalDiff5']
@@ -358,8 +359,8 @@ def show_quick_summary(batch):
         st.markdown(f'<div class="batch-champion">{team_badge(last["team"], "trophy")}<strong>Seriesegrare!</strong></div>', unsafe_allow_html=True)
     for notice in last.get('notices', []):
         st.info(notice)
-    st.dataframe(pd.DataFrame([{'Datum': r['date'], 'Hemma': r['home'], 'Resultat': f"{r['hg']}–{r['ag']}",
-                                'Borta': r['away']} for r in results]), hide_index=True, use_container_width=True)
+    render_table(pd.DataFrame([{'Datum': r['date'], 'Hemma': r['home'], 'Resultat': f"{r['hg']}–{r['ag']}",
+                                'Borta': r['away']} for r in results]), 'quick_results')
     if st.button('Visa säsongssammanfattning' if last['finished'] else 'Till nästa match',
                  type='primary', use_container_width=True, key='close_quick',on_click=dismiss_quick_summary):
         st.session_state.pop('pending_quick_summary',None)
@@ -655,8 +656,7 @@ def render_season_comparison(simulated, actual, team):
     st.caption('Medelvärdet av lagens absoluta poängskillnader. Plus och minus tar inte ut varandra. '
                'Detta jämför en simulerad säsong med verkligheten och är inte ensamt ett mått på modellens kvalitet.')
     with st.expander('Jämför alla 20 lag'):
-        st.dataframe(comparison.style.format({'Skillnad': '{:+d}'}),
-                     hide_index=True, use_container_width=True)
+        render_table(comparison, 'season_comparison', team, formats={'Skillnad': '{:+d}'})
 
 
 def render_league_table(table, results, selected=None, differences=None):
@@ -810,7 +810,7 @@ if mode=='Kick-off':
             st.metric('Slutpoäng', f"{x['points']:+,}")
             st.write(f"{x['wins']} vinster · {x['draws']} oavgjorda · {x['matches']-x['wins']-x['draws']} förluster")
             with st.expander('Alla matcher i omgången'):
-                st.dataframe(pd.DataFrame(x['history']), hide_index=True, use_container_width=True)
+                render_table(pd.DataFrame(x['history']), 'kick_round_history')
             if st.button('Ny omgång', type='primary', use_container_width=True):
                 st.session_state.pop('kick', None)
                 st.session_state.pop('pending_result', None)
@@ -1008,11 +1008,11 @@ else:
             if s['history']:
                 results=pd.DataFrame(s['history'][::-1])
                 with st.expander('Övriga ligan · resultat och datum'):
-                    st.dataframe(results.loc[~(results.HomeTeam.eq(s['team']) | results.AwayTeam.eq(s['team']))],
-                                 hide_index=True,use_container_width=True)
+                    render_table(results.loc[~(results.HomeTeam.eq(s['team']) | results.AwayTeam.eq(s['team']))],
+                                 'other_season_results')
                 with st.expander('Dina matcher · hela säsongen'):
-                    st.dataframe(results.loc[results.HomeTeam.eq(s['team']) | results.AwayTeam.eq(s['team'])],
-                                 hide_index=True,use_container_width=True)
+                    render_table(results.loc[results.HomeTeam.eq(s['team']) | results.AwayTeam.eq(s['team'])],
+                                 'own_season_results')
             with st.expander('Säsongsinställningar'):
                 st.caption('En omstart tar bort den pågående säsongens resultat.')
                 if st.button('Starta om säsongen'):
