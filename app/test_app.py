@@ -308,8 +308,9 @@ class InterfaceTests(unittest.TestCase):
         self.assertFalse(app.exception)
         self.assertEqual(app.session_state['season']['table'][season['team']]['P'], played)
         self.assertFalse(any('Matchpoäng' in m.value for m in app.markdown))
-        next(b for b in app.button if b.label == 'Startsida').click().run()
+        next(b for b in app.button if b.key == 'go_home').click().run()
         self.assertIn('Spela nu', [b.label for b in app.button])
+        self.assertEqual(app.session_state['season']['table'][season['team']]['P'], played)
 
 
 if __name__ == '__main__':

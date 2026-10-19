@@ -82,5 +82,24 @@ https://docs.streamlit.io/deploy/streamlit-community-cloud/deploy-your-app/deplo
 Spelresultat finns bara i den aktuella Streamlit-sessionen. En ny session,
 omstart av servern eller omladdning kan tappa framstegen. Ingen databas används.
 
-Senare ändringar publiceras genom att uppdatera filerna i den anslutna branchen.
-Kör testerna innan uppdateringar laddas upp.
+## Fortsatt arbete från projektmappen
+
+Projektroten `Football-elo` är arbetskopian för GitHub-repositoryt
+`https://github.com/bubbabucktooth/FootballElo`, på branchen `main`.
+Redigera filerna i `app/` som vanligt. Ingen kopiering till `dist/FootballElo`
+behövs längre; den gamla deploymentkopian ligger kvar men ska inte användas
+för fortsatt arbete. `Data/` och `Notebooks/` ligger kvar lokalt och ignoreras av Git.
+
+Kör från projektroten innan en uppdatering publiceras:
+
+```powershell
+.\.venv\Scripts\python.exe -m unittest discover -s app -p test_app.py
+git status
+git diff
+git add app .gitignore DEPLOYMENT.md
+git commit -m "Describe the change"
+git push origin main
+```
+
+Granska ändringarna före commit. En push till den branch som Streamlit är
+anslutet till uppdaterar den publicerade appen.

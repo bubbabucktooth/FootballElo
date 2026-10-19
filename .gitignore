@@ -8,6 +8,10 @@ __pycache__/
 .ruff_cache/
 dist/
 
+# Research stays local; only the deployable app is versioned here
+/Data/
+/Notebooks/
+
 # Credentials and local configuration
 .env
 .env.*

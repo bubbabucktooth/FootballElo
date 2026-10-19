@@ -14,10 +14,14 @@ st.set_page_config(page_title='Beat the Model', page_icon='⚽', layout='wide')
 st.markdown('<style>' + (ROOT / 'styles.css').read_text(encoding='utf-8') + '</style>', unsafe_allow_html=True)
 
 
-def arcade_logo(compact=False):
+def logo_data_uri():
     logo = b64encode((ROOT / 'assets' / 'beat-the-model-arcade.png').read_bytes()).decode('ascii')
+    return f'data:image/png;base64,{logo}'
+
+
+def arcade_logo(compact=False):
     classes = 'arcade-logo header-logo' if compact else 'arcade-logo'
-    return f'<img class="{classes}" src="data:image/png;base64,{logo}" alt="Beat the Model"/>'
+    return f'<img class="{classes}" src="{logo_data_uri()}" alt="Beat the Model"/>'
 
 @st.cache_resource
 def model_load():
@@ -30,21 +34,39 @@ def csv_load(name):
 brand,about=st.columns([3,1],gap='large',vertical_alignment='center')
 with brand:
     if st.session_state.get('app_started', False):
-        logo_column,home_column=st.columns([2,1],vertical_alignment='center')
-        with logo_column:
-            st.markdown(arcade_logo(compact=True), unsafe_allow_html=True)
-        with home_column:
-            if st.button('Startsida', key='go_home'):
-                st.session_state.app_started = False
-                st.rerun()
+        st.markdown(f'<style>.st-key-go_home button {{background-image:url("{logo_data_uri()}") !important;}}</style>',
+                    unsafe_allow_html=True)
+        if st.button('Till startsidan', key='go_home', width=160):
+            st.session_state.app_started = False
+            st.rerun()
 with about:
     with st.expander('Om appen'):
-        st.markdown('**Fotboll är oviss. Utforska vad siffrorna kan säga.**')
-        st.write('Välj ett lag, spela en match eller följ en hel säsong och se hur sannolikheter blir resultat.')
-        st.markdown('**Så fungerar modellen**')
-        st.write('En logistisk regressionsmodell uppskattar sannolikheten för hemmavinst, oavgjort och bortavinst utifrån skillnader i Elo, poängform och målskillnad över de fem senaste matcherna.')
-        st.write('I säsongsläget används Premier Leagues spelschema 2017/18. Matchutfall lottas utifrån prognosen och ett målresultat dras från historiska resultat med samma utfall. Elo och form uppdateras efter varje speldatum.')
-        st.caption('Detta är en simulering, inte en återgivning av säsongens verkliga resultat. Sannolikheter är inga garantier. Förhandstexterna bygger på enkla mallar och lagens data.')
+        st.markdown('''# BEAT THE MODEL
+
+### Fotboll är oförutsägbart. Men hur mycket kan vi faktiskt förutse?
+
+Vad händer om vi låter statistik spela fotboll?
+
+**Beat the Model** är ett interaktivt fotbollsspel byggt på en prediktiv modell för Premier League. Här möts historiska matchresultat, statistiska sannolikheter och fotbollens oförutsägbarhet.
+
+Välj ditt favoritlag, utmana en motståndare i **Kick Off** eller ta dig an en hel Premier League-säsong. Varje match får sitt eget utfall, varje resultat påverkar säsongen och varje simulering berättar en ny historia.
+
+**Samma förutsättningar. Nya möjligheter.**
+
+## Idén bakom Beat the Model
+
+Kan vi använda historiska matchdata för att förutsäga vem som vinner en fotbollsmatch?
+
+Det var utgångspunkten för projektet.
+
+Genom att kombinera lagens relativa styrka, tidigare prestationer och målskillnad utvecklade vi en modell som uppskattar sannolikheten för tre möjliga utfall: hemmaseger, oavgjort eller bortaseger.
+
+Men en sannolikhet är inte ett facit.
+
+Ett lag med 80 procents vinstchans förlorar fortfarande ibland. En underdog kan överraska. Och en säsong som simuleras två gånger behöver inte få samma mästare.
+
+Det är just den osäkerheten som Beat the Model utforskar.
+''')
 if not st.session_state.get('app_started', False):
     st.markdown(f'<div class="landing-hero">{arcade_logo()}'
                 '<p class="landing-tagline">Bollen är rund.</p></div>', unsafe_allow_html=True)
