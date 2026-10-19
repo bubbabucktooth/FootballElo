@@ -28,6 +28,8 @@ html, body, .stApp, .stApp p, .stApp label, .stApp input, .stApp button,
   background-attachment: fixed;
 }
 .block-container { padding-top: var(--space-6); padding-bottom: var(--space-10); max-width: 1280px; }
+/* Hide Streamlit's header, including Community Cloud toolbar additions. */
+header[data-testid="stHeader"] { display: none !important; }
 .stApp *, .stApp *::before, .stApp *::after { box-sizing: border-box; }
 [data-testid="stVerticalBlock"] { gap: var(--space-4); }
 [data-testid="stHorizontalBlock"] { gap: var(--space-6); }
