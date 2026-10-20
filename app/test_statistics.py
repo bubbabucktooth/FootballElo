@@ -300,10 +300,10 @@ class StatisticsInterfaceTests(unittest.TestCase):
         app.run()
         app.get('button_group')[0].set_value('Statistik').run()
         self.assertFalse(app.exception)
-        self.assertTrue(any('inte aktiverad' in x.value for x in app.info))
-        self.assertEqual([x.label for x in app.tabs],
-                         ['Kick-off-statistik', 'Lagstatistik', 'Matchhistorik',
-                          'Säsongsstatistik', 'Översikt', 'Tabell'])
+        self.assertTrue(any('inte tillgänglig lokalt' in x.value for x in app.info))
+        self.assertFalse(app.tabs)
+        self.assertFalse(app.selectbox)
+        self.assertFalse(any(b.key in ('refresh_statistics', 'refresh_season_statistics') for b in app.button))
         app.get('button_group')[0].set_value('Kick-off').run()
         next(b for b in app.button if b.key == 'choose_round_10').click().run()
         next(b for b in app.button if b.label.startswith('Starta om')).click().run()

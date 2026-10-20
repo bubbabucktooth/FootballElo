@@ -84,11 +84,14 @@ def statistics_data(store, version, venue=None, opponent=None, team=None, page=0
 
 def render_statistics(store, teams, current_version, actual_points):
     st.header('Gemensam statistik')
+    if store is None:
+        st.info('Gemensam statistik är inte tillgänglig lokalt. Du kan spela som vanligt, '
+                'men resultaten sparas inte i den gemensamma historiken.')
+        with st.expander('Teknisk information'):
+            st.write('Anslut Supabase via .streamlit/secrets.toml för att aktivera gemensam statistik och highscore.')
+        return
     st.caption('Alla besökares sparade körningar. Data uppdateras inom 30 sekunder. '
                'Resultaten beskriver simuleringar, inte verkliga spelade matcher.')
-    if store is None:
-        st.info('Gemensam statistik är inte aktiverad ännu. Spelet fungerar som vanligt. '
-                'Databasen behöver anslutas via Streamlits secrets innan historiken kan samlas.')
     known_versions = []
     if store is not None:
         try:

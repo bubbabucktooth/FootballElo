@@ -20,7 +20,7 @@ def simulation_namespace():
              'update_states', 'simulate_day', 'advance_to_own_match', 'standings',
              'season_results', 'winning_streak', 'league_position', 'result_reaction',
              'play_next_match', 'match_context', 'title_status', 'relegation_notice', 'team_badge',
-             'actual_snapshot', 'points_difference', 'season_comparison', 'simulate_batch'}
+             'actual_snapshot', 'points_difference', 'season_comparison', 'simulate_batch', 'results_text'}
     functions = ast.Module(body=[node for node in tree.body
         if (isinstance(node, ast.FunctionDef) and node.name in names) or
            (isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'TEAM_KITS' for t in node.targets))], type_ignores=[])
@@ -33,6 +33,11 @@ def simulation_namespace():
 
 
 class SeasonTests(unittest.TestCase):
+    def test_result_counts_use_singular_and_plural(self):
+        label = simulation_namespace()['results_text']
+        self.assertEqual(label(1, 1, 1), '1 vinst · 1 oavgjord · 1 förlust')
+        self.assertEqual(label(0, 2, 3), '0 vinster · 2 oavgjorda · 3 förluster')
+
     @classmethod
     def setUpClass(cls):
         cls.scope = simulation_namespace()
@@ -178,20 +183,24 @@ class SeasonTests(unittest.TestCase):
         season = dict(date_idx=0)
         batch = dict(remaining=5, results=[])
         calls = []
+        progress = []
         def play(season, *_):
             season['date_idx'] += 1
             calls.append(season['date_idx'])
             return dict(new_champion=season['date_idx'] == 2, finished=season['date_idx'] == 5)
         with patch.dict(s, play_next_match=play):
-            title = s['simulate_batch'](season, None, list(range(5)), None, batch)
+            title = s['simulate_batch'](season, None, list(range(5)), None, batch,
+                                        on_progress=lambda done, total: progress.append((done, total)))
             self.assertTrue(title['quick_title'])
             self.assertTrue(title['quick_pause'])
             self.assertEqual(calls, [1,2])
             self.assertEqual(batch['remaining'], 3)
-            self.assertIsNone(s['simulate_batch'](season, None, list(range(5)), None, batch))
+            self.assertIsNone(s['simulate_batch'](season, None, list(range(5)), None, batch,
+                                                on_progress=lambda done, total: progress.append((done, total))))
         self.assertEqual(calls, [1,2,3,4,5])
         self.assertEqual(len(batch['results']), 5)
         self.assertEqual(batch['remaining'], 0)
+        self.assertEqual(progress, [(n, 5) for n in range(1, 6)])
 
     def test_batch_stops_at_end_and_keeps_final_title_celebration(self):
         s = self.scope
@@ -259,12 +268,14 @@ class InterfaceTests(unittest.TestCase):
         next(b for b in app.button if b.label == 'Spela nu').click().run()
         app.get('button_group')[0].set_value('Säsong').run()
         next(b for b in app.button if b.label == 'Starta säsong').click().run()
+        self.assertTrue(any('Inte spelat ännu' in m.value for m in app.markdown))
         next(b for b in app.button if b.label == 'Snabbsimulera').click().run()
         self.assertEqual(app.session_state['season']['table']['Arsenal']['P'], 0)
         next(b for b in app.button if b.label == 'Simulera 3 matcher').click().run()
         self.assertFalse(app.exception)
         self.assertEqual(app.session_state['season']['table']['Arsenal']['P'], 3)
         self.assertIn('3 matcher spelade', [h.value for h in app.subheader])
+        self.assertTrue(any(e.label == 'Fler alternativ' for e in app.expander))
         next(b for b in app.button if b.key == 'close_quick').click().run()
         self.assertEqual(app.session_state['season']['table']['Arsenal']['P'], 3)
         app.run()
@@ -336,7 +347,7 @@ class InterfaceTests(unittest.TestCase):
         self.assertIn('Spela nu', [b.label for b in app.button])
         next(b for b in app.button if b.label == 'Spela nu').click().run()
         self.assertFalse(app.exception)
-        self.assertTrue(next(b for b in app.button if b.key == 'go_home').label.startswith('![Till startsidan](data:image/png;base64,'))
+        self.assertTrue(next(b for b in app.button if b.key == 'go_home').label.startswith('![Till startsidan](data:image/svg+xml;base64,'))
         app.get('button_group')[0].set_value('Säsong').run()
         next(b for b in app.button if b.label == 'Starta säsong').click().run()
         self.assertFalse(app.exception)

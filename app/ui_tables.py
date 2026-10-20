@@ -4,23 +4,31 @@ import pandas as pd
 import streamlit as st
 
 
-def render_table(frame, key, selected=None, formats=None):
+def render_table(frame, key, selected=None, formats=None, *, compact=False):
     """Use the league table's presentation with explicit sorting and CSV export."""
     formats = formats or {}
     frame = frame.copy()
     for name in frame.columns:
         if frame[name].dtype == object:
             frame[name] = frame[name].map(lambda value: str(value) if isinstance(value, (dict, list, tuple)) else value)
-    sort_column, sort_direction = st.columns([2, 1])
-    with sort_column:
-        column = st.selectbox('Sortera efter', list(frame.columns), key=f'{key}_sort')
-    with sort_direction:
-        direction = st.segmented_control('Ordning', ['Stigande', 'Fallande'], default='Stigande',
-                                         required=True, key=f'{key}_direction')
+    def controls():
+        sort_column, sort_direction = st.columns([2, 1])
+        with sort_column:
+            column = st.selectbox('Sortera efter', list(frame.columns), key=f'{key}_sort')
+        with sort_direction:
+            direction = st.segmented_control('Ordning', ['Stigande', 'Fallande'], default='Stigande',
+                                             required=True, key=f'{key}_direction')
+        with st.expander('Exportera tabellen'):
+            st.download_button('Hämta CSV', frame.to_csv(index=False).encode('utf-8-sig'),
+                               file_name=f'{key}.csv', mime='text/csv', key=f'{key}_csv')
+        return column, direction
+
+    if compact:
+        with st.expander('Fler alternativ'):
+            column, direction = controls()
+    else:
+        column, direction = controls()
     descending = direction == 'Fallande'
-    with st.expander('Exportera tabellen'):
-        st.download_button('Hämta CSV', frame.to_csv(index=False).encode('utf-8-sig'),
-                           file_name=f'{key}.csv', mime='text/csv', key=f'{key}_csv')
     ordered = frame.sort_values(column, ascending=not descending, na_position='last', kind='stable')
     headers = ''.join(f'<th scope="col">{escape(str(c))}</th>' for c in frame.columns)
     rows = []

@@ -16,17 +16,27 @@ ROOT = Path(__file__).resolve().parent
 FEATURES = ['EloDiff_Enhanced', 'FormDiff', 'GoalDiff5']
 K, HOME_ADV = 10, 100
 st.set_page_config(page_title='Beat the Model', page_icon='⚽', layout='wide')
-st.markdown('<style>' + (ROOT / 'styles.css').read_text(encoding='utf-8') + '</style>', unsafe_allow_html=True)
+
+def app_styles():
+    # Read on every rerun: Streamlit's function cache does not track CSS edits.
+    font = b64encode((ROOT / 'assets' / 'fonts' / 'PressStart2P-Regular.ttf').read_bytes()).decode('ascii')
+    return (ROOT / 'styles.css').read_text(encoding='utf-8').replace('__PIXEL_FONT__', font)
+
+
+st.markdown('<style>' + app_styles() + '</style>', unsafe_allow_html=True)
 
 
 def logo_data_uri():
-    logo = b64encode((ROOT / 'assets' / 'beat-the-model-arcade.png').read_bytes()).decode('ascii')
-    return f'data:image/png;base64,{logo}'
+    logo = b64encode((ROOT / 'assets' / 'super-soccer.svg').read_bytes()).decode('ascii')
+    return f'data:image/svg+xml;base64,{logo}'
 
 
 def arcade_logo(compact=False):
     classes = 'arcade-logo header-logo' if compact else 'arcade-logo'
-    return f'<img class="{classes}" src="{logo_data_uri()}" alt="Beat the Model"/>'
+    width = 160 if compact else 640
+    return (f'<img class="{classes}" src="{logo_data_uri()}" alt="Beat the Model" '
+            f'width="{width}" height="{round(width * 390 / 720)}" '
+            f'style="width:min(100%, {width}px);height:auto;aspect-ratio:720/390"/>')
 
 @st.cache_resource
 def model_load():
@@ -36,8 +46,16 @@ def model_load():
 def csv_load(name):
     return pd.read_csv(ROOT/name)
 
+def dialog_start(label):
+    # The dialog focuses its first focusable element. Keep it at the top rather
+    # than allowing a bottom action button to scroll the whole dialog on open.
+    st.markdown(f'<span class="dialog-focus" tabindex="0" role="group" '
+                f'aria-label="{escape(label, quote=True)}"></span>', unsafe_allow_html=True)
+
+
 @st.dialog('Om appen', width='large')
 def show_about():
+    dialog_start('Om appen')
     with st.container(key='about_copy'):
         st.markdown('''# BEAT THE MODEL
 
@@ -79,8 +97,7 @@ with about:
     if st.button('Om appen', icon=':material/info:', key='open_about'):
         show_about()
 if not st.session_state.get('app_started', False):
-    st.markdown(f'<div class="landing-hero">{arcade_logo()}'
-                '<p class="landing-tagline">Bollen är rund.</p></div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="landing-hero">{arcade_logo()}</div>', unsafe_allow_html=True)
     _, play_column, _ = st.columns([1, 2, 1])
     with play_column:
         if st.button('Spela nu', type='primary', use_container_width=True):
@@ -268,20 +285,28 @@ def team_badge(team, pose='neutral'):
             f'xmlns="http://www.w3.org/2000/svg" role="img" '
             f'aria-label="{escape(team, quote=True)} ? {label}" shape-rendering="crispEdges">'
             '<ellipse cx="12" cy="29" rx="9" ry="1" fill="#080515" opacity=".35"/>'
+            '<g class="player-body"><g class="player-head">'
             f'<g transform="translate(0 {1 if pose == "sad" else 0})">'
             '<path d="M9 2h6v1h2v5h-2v2H9V8H7V3h2z" fill="#d6a179"/>'
             '<path d="M9 1h6v1h2v3h-2V3H9v2H7V2h2z" fill="#352a30"/>'
             '<path d="M9 6h1v1H9zm5 0h1v1h-1z" fill="#32232c"/>'
-            f'{mouth}</g>{arms}'
+            f'{mouth}</g></g><g class="player-arms">{arms}</g>'
             f'<path d="M8 10h8v10H8z" fill="{shirt}"/>{stripes}'
             f'<path d="M10 10h4v2h-4z" fill="{trim}"/>'
             f'<path d="M8 20h8v4h-3v-2h-2v2H8z" fill="{shorts}"/>'
             f'<path d="M8 24h3v3H8zm5 0h3v3h-3z" fill="{shirt}"/>'
             '<path d="M7 27h4v2H6v-1h1zm6 0h4v1h1v1h-5z" fill="#eee9f8"/>'
-            f'{trophy}</svg>')
+            f'<g class="player-trophy">{trophy}</g></g></svg>')
+
+
+def results_text(wins, draws, losses):
+    return (f'{wins} {"vinst" if wins == 1 else "vinster"} · '
+            f'{draws} {"oavgjord" if draws == 1 else "oavgjorda"} · '
+            f'{losses} {"förlust" if losses == 1 else "förluster"}')
 
 
 def show_match_result(result):
+    dialog_start('Matchresultat')
     tone = {'Vinst': 'result-win', 'Oavgjort': 'result-draw', 'Förlust': 'result-loss'}[result['result']]
     st.markdown(f'<div class="result-reveal {tone}"><div class="result-label">'
                 f'{"Seriesegrare!" if result.get("new_champion") else escape(result["result"])}</div></div>', unsafe_allow_html=True)
@@ -346,12 +371,13 @@ def show_quick_setup(remaining):
 
 
 def show_quick_summary(batch):
+    dialog_start('Snabbsimuleringens resultat')
     results = batch['results']
     last = results[-1]
-    st.subheader(f'{len(results)} matcher spelade')
+    st.subheader('1 match spelad' if len(results) == 1 else f'{len(results)} matcher spelade')
     wins = sum(r['result'] == 'Vinst' for r in results)
     draws = sum(r['result'] == 'Oavgjort' for r in results)
-    st.write(f"**{wins} vinster · {draws} oavgjorda · {len(results)-wins-draws} förluster**")
+    st.write(f'**{results_text(wins, draws, len(results)-wins-draws)}**')
     start = batch['place_before']
     movement = f'{start} → {last["place_after"]}' if start is not None else str(last['place_after'])
     st.write(f"+{last['points']-batch['points_before']} poäng · Placering {movement}")
@@ -360,7 +386,7 @@ def show_quick_summary(batch):
     for notice in last.get('notices', []):
         st.info(notice)
     render_table(pd.DataFrame([{'Datum': r['date'], 'Hemma': r['home'], 'Resultat': f"{r['hg']}–{r['ag']}",
-                                'Borta': r['away']} for r in results]), 'quick_results')
+                                'Borta': r['away']} for r in results]), 'quick_results', compact=True)
     if st.button('Visa säsongssammanfattning' if last['finished'] else 'Till nästa match',
                  type='primary', use_container_width=True, key='close_quick',on_click=dismiss_quick_summary):
         st.session_state.pop('pending_quick_summary',None)
@@ -509,15 +535,81 @@ def play_next_match(season, fixtures, dates, pools):
     return result
 
 
-def simulate_batch(season, fixtures, dates, pools, batch):
+def simulate_batch(season, fixtures, dates, pools, batch, on_progress=None):
     """Pause exactly once at a newly secured title; continuation retains the original request."""
     while batch['remaining'] > 0 and season['date_idx'] < len(dates):
         result = play_next_match(season, fixtures, dates, pools)
         batch['results'].append(result)
         batch['remaining'] -= 1
+        if on_progress is not None:
+            on_progress(len(batch['results']), len(batch['results']) + batch['remaining'])
         if result['new_champion']:
             return dict(result, quick_title=True, quick_pause=batch['remaining'] > 0 and not result['finished'])
     return None
+
+
+def passing_players(team):
+    """Two footballers pass a small robot head in a synchronized loop."""
+    shirt, trim, shorts, pattern = TEAM_KITS.get(team, ('#347bb8', '#ffffff', '#142a46', 'plain'))
+
+    def player(side, colors):
+        jersey, edging, kit_shorts = colors
+        sleeves = edging if pattern == 'sleeves' else jersey
+        stripes = ''.join(f'<rect x="{x}" y="11" width="2" height="8" fill="{edging}"/>'
+                          for x in (9, 13)) if pattern == 'stripes' else ''
+        position = 'translate(42 8) scale(2)' if side == 'left' else 'translate(278 8) scale(-2 2)'
+        return (f'<g class="passer passer-{side}" transform="{position}">'
+            '<path d="M9 2h6v1h2v3h2v2h-3v2H9V8H8V3h1z" fill="#e0ac86"/>'
+            '<path d="M9 1h6v1h2v3h-3V3h-3v4H8V2h1z" fill="#352a30"/>'
+            '<path d="M15 5h1v1h-1z" fill="#142238"/>'
+            f'<path d="M8 10h8v10H8z" fill="{jersey}"/>'
+            f'{stripes}<path d="M10 10h4v2h-4z" fill="{edging}"/>'
+            '<path d="M7 12H5v7h3v-4h2z M15 12h3v4h2v2h-4z" fill="#e0ac86"/>'
+            f'<path d="M5 11h4v4H5z M14 11h4v4h-4z" fill="{sleeves}"/>'
+            f'<path d="M8 20h8v4H8z" fill="{kit_shorts}"/>'
+            f'<path d="M8 23h3v6H8z" fill="{jersey}"/>'
+            '<path d="M7 28h5v2H7z" fill="#edf6ff"/>'
+            f'<g class="passing-leg"><path d="M13 23h3v6h-3z" fill="{jersey}"/>'
+            '<path d="M13 28h6v2h-6z" fill="#edf6ff"/></g></g>')
+
+    return ('<svg class="passing-scene" viewBox="0 0 320 100" role="img" '
+            f'aria-label="Två spelare passar ett robothuvud mellan sig, {escape(team, quote=True)} tränar" '
+            'xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">'
+            '<path d="M20 72H300" fill="none" stroke="#607e9b" stroke-width="1"/>'
+            '<ellipse cx="66" cy="70" rx="17" ry="2" fill="#080f20"/>'
+            '<ellipse cx="254" cy="70" rx="17" ry="2" fill="#080f20"/>'
+            + player('left', (shirt, trim, shorts))
+            + player('right', (shirt, trim, shorts))
+            + '<g class="robot-shadow"><ellipse rx="9" ry="1.5" fill="#080f20" opacity=".55"/></g>'
+            '<g class="robot-pass"><g class="robot-tilt">'
+            '<path d="M0-13v4" fill="none" stroke="#a9bed4" stroke-width="2"/>'
+            '<rect x="-2" y="-15" width="4" height="3" fill="#ef6671"/>'
+            '<path d="M-12-4h3v7h-3z M9-4h3v7H9z" fill="#8199b2"/>'
+            '<rect x="-9" y="-9" width="18" height="17" rx="2" fill="#dce7f3" stroke="#526d8e" stroke-width="1"/>'
+            '<path d="M-6-5H6v7H-6z" fill="#142a46"/>'
+            '<path d="M-4-3h2v3h-2z M2-3h2v3H2z" fill="#91eced"/>'
+            '<path d="M-3 5h6" fill="none" stroke="#526d8e" stroke-width="1"/>'
+            '</g></g></svg>')
+
+
+@st.dialog('Simulerar matcher', dismissible=False)
+def simulation_dialog(season, fixtures, dates, pools, batch):
+    total = len(batch['results']) + batch['remaining']
+    st.markdown(f'<div class="simulation-track">{passing_players(season["team"])}</div>', unsafe_allow_html=True)
+    progress = st.progress(len(batch['results']) / total,
+                           text=f'Matcher klara: {len(batch["results"])} av {total}')
+    st.caption('Övriga ligan simuleras samtidigt. Seriesegern pausar för pokalfirande.')
+
+    def update_progress(completed, requested):
+        progress.progress(completed / requested, text=f'Matcher klara: {completed} av {requested}')
+
+    title_result = simulate_batch(season, fixtures, dates, pools, batch, on_progress=update_progress)
+    if title_result is not None:
+        st.session_state['pending_result'] = title_result
+    else:
+        st.session_state['pending_quick_summary'] = batch
+        st.session_state.pop('quick_batch', None)
+    st.rerun()
 
 
 def match_context(table, own, opponent, fixtures=None):
@@ -808,7 +900,7 @@ if mode=='Kick-off':
             st.subheader('Omgången är klar!')
             st.write(f"**{x['team']} · {x['limit']} matcher**")
             st.metric('Slutpoäng', f"{x['points']:+,}")
-            st.write(f"{x['wins']} vinster · {x['draws']} oavgjorda · {x['matches']-x['wins']-x['draws']} förluster")
+            st.write(results_text(x['wins'], x['draws'], x['matches']-x['wins']-x['draws']))
             with st.expander('Alla matcher i omgången'):
                 render_table(pd.DataFrame(x['history']), 'kick_round_history')
             if st.button('Ny omgång', type='primary', use_container_width=True):
@@ -821,12 +913,12 @@ if mode=='Kick-off':
                         f'<span>Låst lag · Match {x["matches"]+1} av {x["limit"]}</span></span>'
                         f'<span class="streak">{x["points"]:+d} poäng</span></div>', unsafe_allow_html=True)
             st.progress(x['matches']/x['limit'], text=f"Spelade matcher: {x['matches']} / {x['limit']}")
-            opp=st.selectbox('Motståndare',[t for t in teams if t!=own],format_func=team_label, key='kick_opponent')
-            venue=st.segmented_control('Spelplats',['Hemma','Borta'], default='Hemma', required=True,
+            opponent_column, venue_column = st.columns([1.4, 1], vertical_alignment='bottom')
+            opp=opponent_column.selectbox('Motståndare',[t for t in teams if t!=own],format_func=team_label, key='kick_opponent')
+            venue=venue_column.segmented_control('Spelplats',['Hemma','Borta'], default='Hemma', required=True,
                                        format_func=lambda value: f':material/{"home" if value == "Hemma" else "flight_takeoff"}: {value}',
                                        key='kick_venue')
             h,a=(own,opp) if venue=='Hemma' else (opp,own)
-            st.caption(f'Du spelar {"hemma" if venue == "Hemma" else "borta"} med {own}. Hemmalaget visas till vänster.')
             states=load_history() if (ROOT/'history_last5.csv').exists() else starting_states()
             if not (ROOT/'history_last5.csv').exists():
                 for t,r in initial.iterrows():
@@ -835,15 +927,14 @@ if mode=='Kick-off':
             probs=predict(h,a,states)
             pw=probs['H'] if venue=='Hemma' else probs['A']
             reward=round(100/pw); penalty=round(100*pw)
+            play_match = st.button('Spela match', icon=':material/play_arrow:', type='primary',
+                use_container_width=True, disabled=bool(st.session_state.get('pending_result')))
             st.markdown(f'<div class="match-note scoring-note"><span class="score-win"><small>VINST</small><strong>+{reward}</strong></span>'
                         f'<span class="score-draw"><small>OAVGJORT</small><strong>0</strong></span>'
                         f'<span class="score-loss"><small>FÖRLUST</small><strong>−{penalty}</strong></span></div>',
                         unsafe_allow_html=True)
             with st.container(key='kick_match_card'):
                 match_card(h,a,'VS','KICK-OFF · DIN MATCH',details={h: kickoff_details(h), a: kickoff_details(a)})
-                _, action, _ = st.columns([1,2,1])
-                play_match = action.button('Spela match', icon=':material/play_arrow:', type='primary',
-                    use_container_width=True, disabled=bool(st.session_state.get('pending_result')))
             probability_cards(h,a,probs,decimals=1)
             if play_match:
                 result=str(np.random.choice(list(model.classes_),p=[probs[k] for k in model.classes_]))
@@ -874,7 +965,9 @@ if mode=='Kick-off':
             st.subheader(':material/emoji_events: Highscore')
             st.caption('Högsta slutpoäng · alla spelare · aktuell modell')
             if shared_store is None:
-                st.info('Highscore kräver databasanslutning. Lokalt behöver Supabase-inställningarna finnas i .streamlit/secrets.toml, precis som i Streamlit Cloud.')
+                st.caption('Highscore är inte tillgängligt lokalt. Du kan spela som vanligt.')
+                with st.expander('Teknisk information'):
+                    st.write('Anslut Supabase via .streamlit/secrets.toml för att spara och visa highscore.')
             else:
                 try:
                     records = load_highscores(shared_store.url, current_model_version, shared_store)
@@ -884,10 +977,11 @@ if mode=='Kick-off':
                         st.caption(record['team'] if record else 'Inget rekord ännu – spela klart en omgång.')
                 except StatisticsError:
                     st.warning('Highscore kunde inte hämtas. Kontrollera anslutningen och att SQL-uppdatering 002 är körd.')
-            if st.button('Uppdatera highscore', key='refresh_highscores'):
+            if shared_store is not None and st.button('Uppdatera highscore', key='refresh_highscores'):
                 load_highscores.clear()
                 st.rerun()
-            st.caption('Endast avslutade omgångar registreras. Din omgång måste ha spelats med databasanslutning från första matchen.')
+            if shared_store is not None:
+                st.caption('Endast avslutade omgångar registreras. Din omgång måste ha spelats med databasanslutning från första matchen.')
         st.subheader('Din omgång')
         if x is not None:
             st.metric('Totalpoäng',f"{x['points']:+,}")
@@ -940,9 +1034,10 @@ else:
             total=int((fixtures.HomeTeam.eq(s['team']) | fixtures.AwayTeam.eq(s['team'])).sum())
             place=int(standings(s['table']).loc[lambda df: df.Lag.eq(s['team']),'#'].iloc[0])
             streak=winning_streak(season_results(s['history'])[s['team']])
+            standing_label = f'Plats {place}' if played else 'Inte spelat ännu'
             st.markdown(f'<div class="season-summary"><span class="season-details"><strong>{escape(s["team"])}</strong>'
-                        f'<span class="season-standing">Plats {place} · {s["table"][s["team"]]["Pts"]} poäng</span></span>'
-                        f'<span class="streak">{streak} raka vinster</span></div>',
+                        f'<span class="season-standing">{standing_label} · {s["table"][s["team"]]["Pts"]} poäng</span></span>'
+                        f'<span class="streak {"streak-active" if streak > 0 else ""}">{streak} raka vinster</span></div>',
                         unsafe_allow_html=True)
             recent = season_results(s['history'])[s['team']][-5:]
             markers = ''.join(f'<span class="form-dot form-{r}" title="{r}">{r}</span>' for r in recent)
@@ -1060,14 +1155,11 @@ if quick_request is not None and mode == 'Säsong' and st.session_state.season i
                    place_before=league_position(s['table'],s['team']) if s['table'][s['team']]['P'] else None)
         st.session_state['quick_batch']=batch
     if batch:
-        with st.spinner('Matcherna simuleras…'):
-            title_result=simulate_batch(s,fixtures,dates,pools,batch) if quick_request != 'summary' else None
-        if title_result is not None:
-            st.session_state['pending_result']=title_result
-        else:
+        if quick_request == 'summary':
             st.session_state['pending_quick_summary']=batch
             st.session_state.pop('quick_batch',None)
-        st.rerun()
+            st.rerun()
+        simulation_dialog(s, fixtures, dates, pools, batch)
 
 # Keep interactive dialogs until explicitly closed; only one opens in a run.
 pending_result = st.session_state.get('pending_result')

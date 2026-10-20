@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="390" viewBox="0 0 720 390" role="img" aria-labelledby="title desc">
+  <title id="title">Beat the Model</title>
+  <desc id="desc">Blue and white slanted sports lettering, red speed stripes and a gold football emblem.</desc>
+  <defs>
+    <linearGradient id="silver" x2="0" y2="1">
+      <stop stop-color="#ffffff"/><stop offset=".46" stop-color="#eef7ff"/>
+      <stop offset=".5" stop-color="#b8d7f4"/><stop offset="1" stop-color="#ffffff"/>
+    </linearGradient>
+    <radialGradient id="gold" cx=".3" cy=".25" r=".85">
+      <stop stop-color="#fff3a6"/><stop offset=".42" stop-color="#edc75a"/>
+      <stop offset=".8" stop-color="#bc8127"/><stop offset="1" stop-color="#755021"/>
+    </radialGradient>
+    <clipPath id="ball-clip"><circle r="80"/></clipPath>
+    <g id="words" font-family="Arial Black, Impact, sans-serif" font-weight="900" font-style="italic" text-anchor="middle" stroke-linejoin="round">
+      <text x="284" y="167" font-size="78" textLength="435" lengthAdjust="spacingAndGlyphs">BEAT THE</text>
+      <text x="272" y="261" font-size="110" textLength="465" lengthAdjust="spacingAndGlyphs">MODEL</text>
+    </g>
+  </defs>
+  <g transform="rotate(-7 360 195)">
+    <g fill="#d63840">
+      <path d="M66 82H639L662 99H58Z"/>
+      <path d="M48 108H604L620 119H42Z"/>
+      <path d="M25 239H635L627 258H20Z"/>
+      <path d="M12 270H611L604 282H7Z"/>
+      <path d="M65 294H574L566 301H60Z"/>
+    </g>
+    <use href="#words" transform="translate(5 7)" fill="#102957" stroke="#102957" stroke-width="14"/>
+    <use href="#words" fill="url(#silver)" stroke="#2364a1" stroke-width="7" paint-order="stroke fill"/>
+    <g transform="translate(594 192)">
+      <circle r="89" fill="#112b53" stroke="#eef5ff" stroke-width="3"/>
+      <circle r="83" fill="url(#gold)" stroke="#f9d777" stroke-width="3"/>
+      <g clip-path="url(#ball-clip)" fill="none" stroke="#80531c" stroke-width="2.5">
+        <path d="M-90-28Q0-55 90-28 M-90 28Q0 55 90 28 M0-90Q-43 0 0 90 M0-90Q43 0 0 90"/>
+        <path d="M-42-79Q-75 0-42 79 M42-79Q75 0 42 79 M-82 0H82"/>
+        <path d="M0-27 26-8 16 23H-16L-26-8Z" fill="#d19c35"/>
+        <path d="M0-27 0-52-28-70 M0-52 28-70 M26-8 52-17 73-48 M52-17 79 8 M16 23 33 46 65 52 M33 46 25 78 M-16 23-33 46-25 78 M-33 46-65 52 M-26-8-52-17-79 8 M-52-17-73-48"/>
+      </g>
+      <circle r="77" fill="none" stroke="#ffe398" stroke-width="1.5"/>
+    </g>
+  </g>
+</svg>
