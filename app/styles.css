@@ -661,3 +661,28 @@ hr { border-color: var(--border) !important; margin: var(--space-2) 0 !important
   .passing-scene .robot-pass { transform: translate(160px, 65px); }
   .passing-scene .robot-shadow { transform: translate(160px, 76px); }
 }
+
+/* Dense statistics summaries; long team names wrap without clipping. */
+.statistics-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 12px;
+  margin: 8px 0 12px;
+}
+.statistics-summary-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid #839bbb;
+  background: #142a46;
+  box-shadow: inset 0 1px 0 #ffffff16, 2px 2px 0 #060d19;
+  overflow-wrap: anywhere;
+}
+.statistics-summary-label { color: #cbd9e8; font-size: .78rem; line-height: 1.4; }
+.statistics-summary-card strong { color: #edf6ff; font-size: 1.35rem; line-height: 1.3; font-variant-numeric: tabular-nums; }
+.statistics-summary-card small { color: #cbd9e8; font-size: .72rem; line-height: 1.5; }
+@media (max-width: 640px) {
+  .statistics-summary { grid-template-columns: 1fr; gap: 8px; }
+  .statistics-summary-card { padding: 12px 14px; }
+}

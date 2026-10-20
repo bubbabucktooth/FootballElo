@@ -1,6 +1,7 @@
 """Read-only shared statistics UI. Aggregation is performed by PostgreSQL."""
 import pandas as pd
 import streamlit as st
+from html import escape
 from ui_tables import render_table as statistics_table
 from statistics_store import StatisticsError
 
@@ -8,6 +9,66 @@ from statistics_store import StatisticsError
 @st.cache_data(ttl=30, show_spinner=False)
 def load_statistics(endpoint, version, venue, opponent, team, page, _store):
     return _store.statistics(version, venue, opponent, team, page)
+
+
+def summary_cards(cards):
+    """Compact, wrapping summaries with explicit explanations of each measure."""
+    content = ''.join(
+        '<div class="statistics-summary-card">'
+        f'<span class="statistics-summary-label">{escape(label)}</span>'
+        f'<strong>{escape(value)}</strong><small>{escape(detail)}</small></div>'
+        for label, value, detail in cards)
+    st.markdown(f'<div class="statistics-summary">{content}</div>', unsafe_allow_html=True)
+
+
+def season_summary_cards(rows, completed):
+    cards = [('Avslutade säsonger', str(completed), 'Hela ligan · 380 matcher per säsong')]
+    played = [row for row in rows if row['Säsonger'] > 0]
+    if not completed or not played:
+        return cards + [
+            ('Vanligaste mästare', '–', 'Visas efter en avslutad säsong'),
+            ('Avvikelse i poängsnitt', '–', 'Jämförelse med Premier League 2017/18'),
+            ('Största avvikelse', '–', 'Lag vars poängsnitt avviker mest')]
+    maximum = max(row['Seriesegrar'] for row in played)
+    winners = [row['Lag'] for row in played if row['Seriesegrar'] == maximum]
+    if maximum:
+        cards.append(('Vanligaste mästare', winners[0] if len(winners) == 1 else 'Delad förstaplats',
+                      f'{100 * maximum / completed:.1f} % av säsongerna'.replace('.', ',')
+                      + (f' vardera · {", ".join(winners)}' if len(winners) > 1
+                         else f' · {maximum} {"titel" if maximum == 1 else "titlar"}')))
+    else:
+        cards.append(('Vanligaste mästare', '–', 'Ingen seriesegrare i underlaget'))
+    differences = [abs(row['Δ poängsnitt']) for row in played]
+    mean_error = sum(differences) / len(differences)
+    cards.append(('Avvikelse i poängsnitt', f'{mean_error:.1f} p'.replace('.', ','),
+                  f'Absolut skillnad mot verkligheten · medel över {len(played)} lag'))
+    largest = max(differences)
+    surprises = [row for row in played if abs(abs(row['Δ poängsnitt']) - largest) < 1e-9]
+    if largest < 1e-9:
+        cards.append(('Största avvikelse', '0,0 p', 'Alla lagens poängsnitt matchar verkligheten'))
+    else:
+        detail = ' · '.join(f'{row["Lag"]} {row["Δ poängsnitt"]:+.1f} p'.replace('.', ',') for row in surprises)
+        cards.append(('Största avvikelse', f'{largest:.1f} p'.replace('.', ','), detail))
+    return cards
+
+
+def kick_summary_cards(data):
+    total = int(data.get('kick_total', 0))
+    cards = [('Registrerade matcher', str(total), 'Unika matcher · valda filter')]
+    summary = data.get('kick_summary')
+    if not total:
+        return cards + [('Utfall 1 / X / 2', '–', 'Inga matcher för valda filter'),
+                        ('Favoritutfallet träffade', '–', 'Visas när matcher har registrerats')]
+    if not summary:
+        return cards + [('Utfall 1 / X / 2', '–', 'Sammanställning inte tillgänglig ännu'),
+                        ('Favoritutfallet träffade', '–', 'Sammanställning inte tillgänglig ännu')]
+    shares = [100 * int(summary[key]) / total for key in ('home_wins', 'draws', 'away_wins')]
+    cards.append(('Utfall 1 / X / 2', ' / '.join(f'{value:.0f}' for value in shares) + ' %',
+                  'Hemmavinst / Oavgjort / Bortavinst'))
+    correct = int(summary['correct_predictions'])
+    cards.append(('Favoritutfallet träffade', f'{100 * correct / total:.1f} %'.replace('.', ','),
+                  f'{correct} av {total} · utfallet med högst modellsannolikhet'))
+    return cards
 
 
 def season_overview_charts(rows, completed):
@@ -114,7 +175,15 @@ def render_statistics(store, teams, current_version, actual_points):
         league_tab, history_tab = st.tabs(['Lagstatistik', 'Matchhistorik'])
         with league_tab:
             if data is not None:
-                st.metric('Registrerade matcher · valda filter', data.get('kick_total', 0))
+                summary_cards(kick_summary_cards(data))
+                with st.expander('Så räknas nyckeltalen'):
+                    st.write('Varje match räknas en gång. Utfallet med högst sannolikhet jämförs med '
+                             'det simulerade resultatet. Vid lika sannolikhet prioriteras 1, sedan X, sedan 2. '
+                             'Detta är ett mått på simulerade utfall, inte träffsäkerhet på verkliga matcher. '
+                             'Utfallsandelarna avrundas och kan därför summera till något annat än 100 %.')
+                    if data.get('kick_total', 0) and not data.get('kick_summary'):
+                        st.caption('Teknisk information: kör app/sql/003_statistics_summary.sql i Supabase '
+                                   'och uppdatera statistiken för att aktivera sammanställningen.')
                 indexed = {r['team']: r for r in data.get('kick', [])}
                 rows = []
                 for team in teams:
@@ -164,7 +233,6 @@ def render_statistics(store, teams, current_version, actual_points):
             load_statistics.clear()
         data = statistics_data(store, selected_version)
         if data is not None:
-            st.metric('Avslutade säsonger', data.get('completed_seasons', 0))
             indexed = {r['team']: r for r in data.get('seasons', [])}
             rows = []
             for team in teams:
@@ -179,6 +247,12 @@ def render_statistics(store, teams, current_version, actual_points):
                              'Nedflyttning %': 100*int(r.get('relegations', 0))/n if n else None,
                              'Poängsnitt': points, 'Verkliga poäng': actual_points[team],
                              'Δ poängsnitt': points-actual_points[team] if n else None})
+            summary_cards(season_summary_cards(rows, data.get('completed_seasons', 0)))
+            with st.expander('Så räknas säsongsmåtten'):
+                st.write('Avvikelse i poängsnitt är medelvärdet av de absoluta skillnaderna mellan varje lags '
+                         'simulerade poängsnitt och lagets verkliga poäng 2017/18. Det är inte medelfelet '
+                         'för enskilda säsonger. Största avvikelse visar laget eller lagen med störst '
+                         'sådan skillnad. Plus betyder fler poäng än i verkligheten, minus färre.')
             overview_tab, table_tab = st.tabs(['Översikt', 'Tabell'])
             with overview_tab:
                 season_overview_charts(rows, data.get('completed_seasons', 0))

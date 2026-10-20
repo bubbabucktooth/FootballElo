@@ -11,7 +11,7 @@ import altair as alt
 from streamlit.testing.v1 import AppTest
 from statistics_store import (StatisticsError, SupabaseStore, kick_event, final_rows,
                               season_payload, sync_season, flush_kicks, new_run_id, probabilities)
-from statistics_page import season_overview_charts
+from statistics_page import season_overview_charts, season_summary_cards, kick_summary_cards
 from ui_tables import render_table
 
 ROOT = Path(__file__).parent
@@ -53,7 +53,8 @@ class MemoryStore:
              'avg_points': 85, 'common_positions': [1,2]}],
             'distribution': [{'team':'Arsenal', 'position':1, 'count':1},
                              {'team':'Arsenal', 'position':2, 'count':1}],
-            'history': [], 'kick_total': 2, 'history_total': 0, 'completed_seasons': 2}
+            'history': [], 'kick_total': 2, 'history_total': 0, 'completed_seasons': 2,
+            'kick_summary': {'home_wins': 1, 'draws': 1, 'away_wins': 0, 'correct_predictions': 1}}
 
     def highscores(self, version):
         return []
@@ -67,6 +68,32 @@ class MemoryStore:
 
 
 class PersistenceTests(unittest.TestCase):
+    def test_kick_summary_uses_complete_aggregate_not_history_page(self):
+        data = {'kick_total': 100, 'history': [{'outcome': 'A'}],
+                'kick_summary': {'home_wins': 50, 'draws': 30, 'away_wins': 20,
+                                 'correct_predictions': 61}}
+        cards = kick_summary_cards(data)
+        self.assertEqual(cards[0][1], '100')
+        self.assertEqual(cards[1][1], '50 / 30 / 20 %')
+        self.assertEqual(cards[2][1], '61,0 %')
+        self.assertEqual(kick_summary_cards({'kick_total': 0})[1][1], '–')
+        # Existing databases without migration 003 must remain usable.
+        self.assertEqual(kick_summary_cards({'kick_total': 100})[2][1], '–')
+
+    def test_season_summary_handles_ties_and_absolute_average_differences(self):
+        rows = [{'Lag': team, 'Säsonger': 4, 'Seriesegrar': 2, 'Δ poängsnitt': delta}
+                for team, delta in [('Arsenal', 10), ('Chelsea', -10)]]
+        cards = season_summary_cards(rows, 4)
+        self.assertEqual(cards[1][1], 'Delad förstaplats')
+        self.assertIn('50,0 %', cards[1][2])
+        self.assertEqual(cards[2][1], '10,0 p')  # Opposite errors must not cancel.
+        self.assertIn('Arsenal +10,0 p', cards[3][2])
+        self.assertIn('Chelsea -10,0 p', cards[3][2])
+        self.assertTrue(all(c[1] == '–' for c in season_summary_cards([], 0)[1:]))
+        for row in rows:
+            row['Δ poängsnitt'] = 0
+        self.assertEqual(season_summary_cards(rows, 4)[3][1], '0,0 p')
+
     def test_table_highlight_requires_an_explicit_selected_team(self):
         with patch('ui_tables.st') as ui:
             ui.columns.return_value = (MagicMock(), MagicMock())
