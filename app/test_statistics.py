@@ -200,6 +200,60 @@ class PersistenceTests(unittest.TestCase):
 
 
 class StatisticsInterfaceTests(unittest.TestCase):
+    def test_match_dates_sort_chronologically_across_months_and_years(self):
+        app = AppTest.from_string('''
+import pandas as pd
+from ui_tables import render_table
+render_table(pd.DataFrame({'Datum': ['09/09 2017', '19/08 2017', '01/01 2018', '27/08 2017'],
+                           'Hemma': ['September', 'AugustFirst', 'January', 'AugustLast']}),
+             'date_regression', compact=True, date_columns=('Datum',))
+''').run()
+        self.assertFalse(app.exception)
+        table = next(m.value for m in app.markdown if '<table' in m.value)
+        positions = [table.index(name) for name in ('AugustFirst', 'AugustLast', 'September', 'January')]
+        self.assertEqual(positions, sorted(positions))
+        app.get('button_group')[0].set_value('Fallande').run()
+        table = next(m.value for m in app.markdown if '<table' in m.value)
+        self.assertLess(table.index('January'), table.index('AugustFirst'))
+
+    def test_statistics_error_has_a_working_retry(self):
+        store = MemoryStore()
+        store.url = 'https://retry-ui-test.supabase.co/rest/v1/rpc/'
+        actual_statistics = store.statistics
+        store.statistics = MagicMock(side_effect=[StatisticsError('Tillfälligt anslutningsfel')])
+        app = AppTest.from_file(str(ROOT / 'app.py'), default_timeout=60)
+        app.secrets['statistics'] = dict(enabled=True, url='https://retry-ui-test.supabase.co', secret_key='sb_secret_test')
+        app.session_state['app_started'] = True
+        with patch('statistics_store.SupabaseStore', return_value=store):
+            app.run()
+            app.get('button_group')[0].set_value('Statistik').run()
+            self.assertTrue(any('Tillfälligt' in w.value for w in app.warning))
+            store.statistics = actual_statistics
+            next(b for b in app.button if b.key == 'retry_statistics_metadata').click().run()
+            self.assertFalse(app.exception)
+            self.assertTrue(any(t.label == 'Kick-off-statistik' for t in app.tabs))
+
+    def test_simultaneous_statistics_failures_have_independent_retry_buttons(self):
+        store = MemoryStore()
+        store.url = 'https://parallel-errors-ui-test.supabase.co/rest/v1/rpc/'
+        original_statistics = store.statistics
+        def unavailable_all_versions(version, *args):
+            if version is None:
+                raise StatisticsError('Tillfälligt anslutningsfel')
+            return original_statistics(version, *args)
+        store.statistics = unavailable_all_versions
+        app = AppTest.from_file(str(ROOT / 'app.py'), default_timeout=60)
+        app.secrets['statistics'] = dict(enabled=True, url='https://parallel-errors-ui-test.supabase.co', secret_key='sb_secret_test')
+        app.session_state['app_started'] = True
+        app.session_state['game_mode'] = 'Statistik'
+        app.session_state['stats_kick_version'] = 'Alla modellversioner'
+        app.session_state['stats_season_version'] = 'Alla modellversioner'
+        with patch('statistics_store.SupabaseStore', return_value=store):
+            app.run()
+        self.assertFalse(app.exception)
+        keys = {b.key for b in app.button if b.label == 'Försök igen'}
+        self.assertEqual(keys, {'retry_kick_statistics', 'retry_kick_history', 'retry_season_statistics'})
+
     def test_placement_chart_changes_data_when_team_changes(self):
         from statistics_page import st as page_st
         store = MemoryStore()

@@ -4,10 +4,13 @@ import pandas as pd
 import streamlit as st
 
 
-def render_table(frame, key, selected=None, formats=None, *, compact=False):
+def render_table(frame, key, selected=None, formats=None, *, compact=False,
+                 date_columns=(), descending=False):
     """Use the league table's presentation with explicit sorting and CSV export."""
     formats = formats or {}
     frame = frame.copy()
+    for name in date_columns:
+        frame[name] = pd.to_datetime(frame[name], format='mixed', dayfirst=True, errors='raise')
     for name in frame.columns:
         if frame[name].dtype == object:
             frame[name] = frame[name].map(lambda value: str(value) if isinstance(value, (dict, list, tuple)) else value)
@@ -16,7 +19,7 @@ def render_table(frame, key, selected=None, formats=None, *, compact=False):
         with sort_column:
             column = st.selectbox('Sortera efter', list(frame.columns), key=f'{key}_sort')
         with sort_direction:
-            direction = st.segmented_control('Ordning', ['Stigande', 'Fallande'], default='Stigande',
+            direction = st.segmented_control('Ordning', ['Stigande', 'Fallande'], default='Fallande' if descending else 'Stigande',
                                              required=True, key=f'{key}_direction')
         with st.expander('Exportera tabellen'):
             st.download_button('Hämta CSV', frame.to_csv(index=False).encode('utf-8-sig'),
@@ -35,7 +38,8 @@ def render_table(frame, key, selected=None, formats=None, *, compact=False):
     for record in ordered.to_dict('records'):
         cells = []
         for name, value in record.items():
-            text = '–' if pd.isna(value) else formats[name].format(value) if name in formats else str(value)
+            text = ('–' if pd.isna(value) else value.strftime('%d/%m %Y') if name in date_columns
+                    else formats[name].format(value) if name in formats else str(value))
             cells.append(f'<td>{escape(text)}</td>')
         own = 'own-team' if selected is not None and record.get('Lag') == selected else ''
         rows.append(f'<tr class="{own}">' + ''.join(cells) + '</tr>')

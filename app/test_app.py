@@ -413,7 +413,8 @@ class InterfaceTests(unittest.TestCase):
         app.get('button_group')[0].set_value('Säsong').run()
         self.assertFalse(app.exception)
         self.assertIn('Hur nära verkligheten?', [h.value for h in app.subheader])
-        self.assertIn('0,0 poäng', [m.value for m in app.metric])
+        self.assertTrue(any('0,0 poäng' in m.value for m in app.caption))
+        self.assertTrue(any('Slutplacering' in m.value and 'V / O / F' in m.value for m in app.markdown))
         self.assertIn('Jämför alla 20 lag', [e.label for e in app.expander])
 
     def test_kickoff_overlay_all_outcomes_and_away_perspective(self):
@@ -432,6 +433,7 @@ class InterfaceTests(unittest.TestCase):
             self.assertEqual(app.session_state['kick']['matches'], index)
             self.assertTrue(any('result-label' in m.value and label in m.value for m in app.markdown))
             self.assertTrue(any('Poäng den här matchen' in m.value for m in app.markdown))
+            self.assertTrue(any('Ditt lag' in m.value for m in app.markdown))
             self.assertFalse(any('Tabellplats' in m.value for m in app.markdown))
             delta = app.session_state['kick']['last'][1]
             self.assertTrue(delta > 0 if label == 'Vinst' else delta == 0 if label == 'Oavgjort' else -100 <= delta <= 0)

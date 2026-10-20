@@ -132,7 +132,7 @@ def version_filter(known_versions, current_version, key):
     return selected
 
 
-def statistics_data(store, version, venue=None, opponent=None, team=None, page=0):
+def statistics_data(store, version, venue=None, opponent=None, team=None, page=0, *, retry_key='retry_statistics_data'):
     if store is None:
         return {}
     try:
@@ -140,7 +140,14 @@ def statistics_data(store, version, venue=None, opponent=None, team=None, page=0
     except StatisticsError as error:
         st.warning(str(error))
         st.caption('Statistiken kan inte visas just nu. Befintliga resultat finns kvar i databasen.')
+        retry_statistics(retry_key)
         return None
+
+
+def retry_statistics(key):
+    if st.button('Försök igen', key=key, icon=':material/refresh:'):
+        load_statistics.clear()
+        st.rerun()
 
 
 def render_statistics(store, teams, current_version, actual_points):
@@ -160,18 +167,25 @@ def render_statistics(store, teams, current_version, actual_points):
             known_versions = [v for v in metadata.get('versions', []) if v != current_version]
         except StatisticsError as error:
             st.warning(str(error))
+            retry_statistics('retry_statistics_metadata')
             return
     kick_tab, season_tab = st.tabs(['Kick-off-statistik', 'Säsongsstatistik'])
     with kick_tab:
-        selected_version = version_filter(known_versions, current_version, 'stats_kick_version')
-        venue_col, opponent_col = st.columns(2)
-        venue = venue_col.selectbox('Spelplats', ['Alla', 'Hemma', 'Borta'], key='stats_venue')
-        opponent = opponent_col.selectbox('Motståndare', ['Alla'] + teams, key='stats_opponent')
-        if st.button('Uppdatera Kick-off-statistik', key='refresh_statistics'):
-            load_statistics.clear()
+        with st.container(key='statistics_filters_kick'):
+            filters, refresh, active = st.columns([1, 1.4, 4], vertical_alignment='center')
+            with filters.popover('Filter', icon=':material/tune:', use_container_width=True):
+                selected_version = version_filter(known_versions, current_version, 'stats_kick_version')
+                venue_col, opponent_col = st.columns(2)
+                venue = venue_col.selectbox('Spelplats', ['Alla', 'Hemma', 'Borta'], key='stats_venue')
+                opponent = opponent_col.selectbox('Motståndare', ['Alla'] + teams, key='stats_opponent')
+            if refresh.button('Uppdatera', key='refresh_statistics', icon=':material/refresh:', use_container_width=True):
+                load_statistics.clear()
+            active.caption(f'{st.session_state.stats_kick_version} · '
+                           f'{"Alla spelplatser" if venue == "Alla" else venue} · '
+                           f'{"Alla motståndare" if opponent == "Alla" else opponent}')
         venue_filter = None if venue == 'Alla' else venue
         opponent_filter = None if opponent == 'Alla' else opponent
-        data = statistics_data(store, selected_version, venue_filter, opponent_filter)
+        data = statistics_data(store, selected_version, venue_filter, opponent_filter, retry_key='retry_kick_statistics')
         league_tab, history_tab = st.tabs(['Lagstatistik', 'Matchhistorik'])
         with league_tab:
             if data is not None:
@@ -195,7 +209,7 @@ def render_statistics(store, teams, current_version, actual_points):
                                  'Förväntade vinster': expected if n else None,
                                  'Vinster − förväntat': wins-expected if n else None})
                 statistics_table(pd.DataFrame(rows), 'kick_statistics', None,
-                                 {'Vinst %': '{:.1f}', 'Förväntade vinster': '{:.1f}', 'Vinster − förväntat': '{:+.1f}'})
+                                 {'Vinst %': '{:.1f}', 'Förväntade vinster': '{:.1f}', 'Vinster − förväntat': '{:+.1f}'}, compact=True)
                 st.caption('Båda lagen får ett resultat per match. Förväntade vinster är summan av modellens '
                            'vinstsannolikheter. Spelets bonuspoäng ingår inte här.')
         with history_tab:
@@ -205,7 +219,8 @@ def render_statistics(store, teams, current_version, actual_points):
                 st.session_state.stats_page = 0
                 st.session_state.stats_filters = filters
             page = st.session_state.get('stats_page', 0)
-            data = statistics_data(store, selected_version, venue_filter, opponent_filter, history_team, page)
+            data = statistics_data(store, selected_version, venue_filter, opponent_filter, history_team, page,
+                                   retry_key='retry_kick_history')
             if data is not None:
                 st.subheader(f'Matchhistorik · {history_team}')
                 history = data.get('history', [])
@@ -215,7 +230,8 @@ def render_statistics(store, teams, current_version, actual_points):
                                 'Utfall': labels[r['outcome']], '1 %': 100*float(r['p_h']),
                                 'X %': 100*float(r['p_d']), '2 %': 100*float(r['p_a'])} for r in history]
                     statistics_table(pd.DataFrame(records), 'kick_history',
-                                     formats={'1 %': '{:.1f}', 'X %': '{:.1f}', '2 %': '{:.1f}'})
+                                     formats={'1 %': '{:.1f}', 'X %': '{:.1f}', '2 %': '{:.1f}'}, compact=True, descending=True)
+                    st.caption('Sortering gäller matcherna på den här sidan. Senaste matcherna visas på sida 1.')
                 else:
                     st.write('Inga registrerade matcher för de valda filtren ännu.')
                 total = data.get('history_total', 0)
@@ -228,10 +244,14 @@ def render_statistics(store, teams, current_version, actual_points):
                     st.session_state.stats_page = page+1
                     st.rerun()
     with season_tab:
-        selected_version = version_filter(known_versions, current_version, 'stats_season_version')
-        if st.button('Uppdatera säsongsstatistik', key='refresh_season_statistics'):
-            load_statistics.clear()
-        data = statistics_data(store, selected_version)
+        with st.container(key='statistics_filters_season'):
+            filters, refresh, active = st.columns([1, 1.4, 4], vertical_alignment='center')
+            with filters.popover('Filter', icon=':material/tune:', use_container_width=True):
+                selected_version = version_filter(known_versions, current_version, 'stats_season_version')
+            if refresh.button('Uppdatera', key='refresh_season_statistics', icon=':material/refresh:', use_container_width=True):
+                load_statistics.clear()
+            active.caption(st.session_state.stats_season_version)
+        data = statistics_data(store, selected_version, retry_key='retry_season_statistics')
         if data is not None:
             indexed = {r['team']: r for r in data.get('seasons', [])}
             rows = []
@@ -288,7 +308,7 @@ def render_statistics(store, teams, current_version, actual_points):
             with table_tab:
                 statistics_table(pd.DataFrame(rows), 'season_statistics', None,
                                  {**{k: '{:.1f}' for k in ('Snittplacering', 'Topp 4 (%)', 'Nedflyttning %', 'Poängsnitt')},
-                                  'Δ poängsnitt': '{:+.1f}', 'Bäst': '{:.0f}', 'Sämst': '{:.0f}'})
+                                  'Δ poängsnitt': '{:+.1f}', 'Bäst': '{:.0f}', 'Sämst': '{:.0f}'}, compact=True)
                 st.caption('Endast fullständiga säsonger med 380 matcher räknas här. Alla 20 lag ingår i varje '
                            'säsong, oavsett vilket lag besökaren valde. Lika vanliga slutplaceringar visas tillsammans.')
                 st.caption('Topp 4 (%) = andelen avslutade simuleringar där laget slutat på plats 1–4. '
