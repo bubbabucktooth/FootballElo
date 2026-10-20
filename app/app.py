@@ -550,7 +550,7 @@ def simulate_batch(season, fixtures, dates, pools, batch, on_progress=None):
 
 def passing_players(team):
     """Two footballers pass a small robot head in a synchronized loop."""
-    shirt, trim, shorts, pattern = TEAM_KITS.get(team, ('#347bb8', '#ffffff', '#142a46', 'plain'))
+    shirt, trim, shorts, pattern = TEAM_KITS.get(team, ('#9572d8', '#ffffff', '#211833', 'plain'))
 
     def player(side, colors):
         jersey, edging, kit_shorts = colors
@@ -561,34 +561,34 @@ def passing_players(team):
         return (f'<g class="passer passer-{side}" transform="{position}">'
             '<path d="M9 2h6v1h2v3h2v2h-3v2H9V8H8V3h1z" fill="#e0ac86"/>'
             '<path d="M9 1h6v1h2v3h-3V3h-3v4H8V2h1z" fill="#352a30"/>'
-            '<path d="M15 5h1v1h-1z" fill="#142238"/>'
+            '<path d="M15 5h1v1h-1z" fill="#32232c"/>'
             f'<path d="M8 10h8v10H8z" fill="{jersey}"/>'
             f'{stripes}<path d="M10 10h4v2h-4z" fill="{edging}"/>'
             '<path d="M7 12H5v7h3v-4h2z M15 12h3v4h2v2h-4z" fill="#e0ac86"/>'
             f'<path d="M5 11h4v4H5z M14 11h4v4h-4z" fill="{sleeves}"/>'
             f'<path d="M8 20h8v4H8z" fill="{kit_shorts}"/>'
             f'<path d="M8 23h3v6H8z" fill="{jersey}"/>'
-            '<path d="M7 28h5v2H7z" fill="#edf6ff"/>'
+            '<path d="M7 28h5v2H7z" fill="#f4f1fc"/>'
             f'<g class="passing-leg"><path d="M13 23h3v6h-3z" fill="{jersey}"/>'
-            '<path d="M13 28h6v2h-6z" fill="#edf6ff"/></g></g>')
+            '<path d="M13 28h6v2h-6z" fill="#f4f1fc"/></g></g>')
 
     return ('<svg class="passing-scene" viewBox="0 0 320 100" role="img" '
             f'aria-label="Två spelare passar ett robothuvud mellan sig, {escape(team, quote=True)} tränar" '
             'xmlns="http://www.w3.org/2000/svg" shape-rendering="crispEdges">'
-            '<path d="M20 72H300" fill="none" stroke="#607e9b" stroke-width="1"/>'
-            '<ellipse cx="66" cy="70" rx="17" ry="2" fill="#080f20"/>'
-            '<ellipse cx="254" cy="70" rx="17" ry="2" fill="#080f20"/>'
+            '<path d="M20 72H300" fill="none" stroke="#786098" stroke-width="1"/>'
+            '<ellipse cx="66" cy="70" rx="17" ry="2" fill="#160e2b"/>'
+            '<ellipse cx="254" cy="70" rx="17" ry="2" fill="#160e2b"/>'
             + player('left', (shirt, trim, shorts))
             + player('right', (shirt, trim, shorts))
-            + '<g class="robot-shadow"><ellipse rx="9" ry="1.5" fill="#080f20" opacity=".55"/></g>'
+            + '<g class="robot-shadow"><ellipse rx="9" ry="1.5" fill="#160e2b" opacity=".55"/></g>'
             '<g class="robot-pass"><g class="robot-tilt">'
-            '<path d="M0-13v4" fill="none" stroke="#a9bed4" stroke-width="2"/>'
+            '<path d="M0-13v4" fill="none" stroke="#bea9d4" stroke-width="2"/>'
             '<rect x="-2" y="-15" width="4" height="3" fill="#ef6671"/>'
-            '<path d="M-12-4h3v7h-3z M9-4h3v7H9z" fill="#8199b2"/>'
-            '<rect x="-9" y="-9" width="18" height="17" rx="2" fill="#dce7f3" stroke="#526d8e" stroke-width="1"/>'
-            '<path d="M-6-5H6v7H-6z" fill="#142a46"/>'
+            '<path d="M-12-4h3v7h-3z M9-4h3v7H9z" fill="#9981b2"/>'
+            '<rect x="-9" y="-9" width="18" height="17" rx="2" fill="#e8dcf3" stroke="#665180" stroke-width="1"/>'
+            '<path d="M-6-5H6v7H-6z" fill="#211833"/>'
             '<path d="M-4-3h2v3h-2z M2-3h2v3H2z" fill="#91eced"/>'
-            '<path d="M-3 5h6" fill="none" stroke="#526d8e" stroke-width="1"/>'
+            '<path d="M-3 5h6" fill="none" stroke="#665180" stroke-width="1"/>'
             '</g></g></svg>')
 
 

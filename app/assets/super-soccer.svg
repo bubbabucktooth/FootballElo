@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="720" height="390" viewBox="0 0 720 390" role="img" aria-labelledby="title desc">
   <title id="title">Beat the Model</title>
-  <desc id="desc">Blue and white slanted sports lettering, red speed stripes and a gold football emblem.</desc>
+  <desc id="desc">Purple and white slanted sports lettering, red speed stripes and a gold football emblem.</desc>
   <defs>
     <linearGradient id="silver" x2="0" y2="1">
-      <stop stop-color="#ffffff"/><stop offset=".46" stop-color="#eef7ff"/>
-      <stop offset=".5" stop-color="#b8d7f4"/><stop offset="1" stop-color="#ffffff"/>
+      <stop stop-color="#ffffff"/><stop offset=".46" stop-color="#faf5ff"/>
+      <stop offset=".5" stop-color="#d2baff"/><stop offset="1" stop-color="#ffffff"/>
     </linearGradient>
     <radialGradient id="gold" cx=".3" cy=".25" r=".85">
       <stop stop-color="#fff3a6"/><stop offset=".42" stop-color="#edc75a"/>
@@ -24,10 +24,10 @@
       <path d="M12 270H611L604 282H7Z"/>
       <path d="M65 294H574L566 301H60Z"/>
     </g>
-    <use href="#words" transform="translate(5 7)" fill="#102957" stroke="#102957" stroke-width="14"/>
-    <use href="#words" fill="url(#silver)" stroke="#2364a1" stroke-width="7" paint-order="stroke fill"/>
+    <use href="#words" transform="translate(5 7)" fill="#30204f" stroke="#30204f" stroke-width="14"/>
+    <use href="#words" fill="url(#silver)" stroke="#7850cf" stroke-width="7" paint-order="stroke fill"/>
     <g transform="translate(594 192)">
-      <circle r="89" fill="#112b53" stroke="#eef5ff" stroke-width="3"/>
+      <circle r="89" fill="#30204f" stroke="#faf5ff" stroke-width="3"/>
       <circle r="83" fill="url(#gold)" stroke="#f9d777" stroke-width="3"/>
       <g clip-path="url(#ball-clip)" fill="none" stroke="#80531c" stroke-width="2.5">
         <path d="M-90-28Q0-55 90-28 M-90 28Q0 55 90 28 M0-90Q-43 0 0 90 M0-90Q43 0 0 90"/>
