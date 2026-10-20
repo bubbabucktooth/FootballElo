@@ -1063,7 +1063,7 @@ if st.session_state.get('statistics_error'):
 
 mode_icons = {'Kick-off': 'sports_soccer', 'Säsong': 'emoji_events', 'Statistik': 'bar_chart'}
 menu_column, navigation_column = st.columns([1, 3], vertical_alignment='center')
-if menu_column.button('Huvudmeny', icon=':material/home:', use_container_width=True):
+if menu_column.button('Huvudmeny', icon=':material/home:', use_container_width=True, key='open_main_menu'):
     st.session_state.app_view = 'menu'
     st.rerun()
 if 'game_mode' not in st.session_state:
@@ -1093,15 +1093,16 @@ if mode=='Kick-off':
         if x is None:
             st.subheader('Välj spelsätt')
             st.caption('Hur många matcher vill du spela?')
-            choice_columns = st.columns(3)
             length = st.session_state.get('kick_length')
-            for column, count in zip(choice_columns, (10,20,30)):
-                with column, st.container(key=f'round_choice_{count}'):
-                    st.markdown(round_illustration(count), unsafe_allow_html=True)
-                    if st.button(f'{count} matcher', key=f'choose_round_{count}',
-                                 type='primary' if length == count else 'secondary', use_container_width=True):
-                        st.session_state.kick_length = count
-                        st.rerun()
+            with st.container(key='round_choices'):
+                choice_columns = st.columns(3)
+                for column, count in zip(choice_columns, (10,20,30)):
+                    with column, st.container(key=f'round_choice_{count}'):
+                        st.markdown(round_illustration(count), unsafe_allow_html=True)
+                        if st.button(f'{count} matcher', key=f'choose_round_{count}',
+                                     type='primary' if length == count else 'secondary', use_container_width=True):
+                            st.session_state.kick_length = count
+                            st.rerun()
             if length is not None:
                 selected = st.selectbox('Ditt lag', teams, format_func=team_label, key='kick_team_choice')
                 team_preview(selected, float(initial.loc[selected, 'Elo']))
@@ -1264,6 +1265,12 @@ else:
     summary_slot=None
     left,right=st.columns([1.6,1],gap='large')
     with left:
+        if st.session_state.season is not None:
+            st.markdown('<nav class="mobile-season-nav" aria-label="Säsongsnavigation">'
+                        '<a href="#season-overview" target="_self">Översikt</a>'
+                        '<a href="#season-table" target="_self">Tabell</a>'
+                        '<a href="#season-history" target="_self">Historik</a></nav>'
+                        '<span id="season-overview" class="mobile-season-anchor"></span>', unsafe_allow_html=True)
         st.header('Säsong 2017/18')
         if st.session_state.season is None:
             selected=st.selectbox('Ditt lag',teams,key='season_team')
@@ -1361,6 +1368,7 @@ else:
                 if st.button('Starta ny säsong',type='primary',use_container_width=True):
                     reset_season()
                     st.rerun()
+            st.markdown('<span id="season-history" class="mobile-season-anchor"></span>', unsafe_allow_html=True)
             if s.get('last_match'):
                 last=s['last_match']
                 st.markdown('<div class="history-heading">Resultat och historik</div>', unsafe_allow_html=True)
@@ -1383,6 +1391,7 @@ else:
                 if st.button('Starta om säsongen'):
                     reset_season();st.rerun()
     with right:
+        st.markdown('<span id="season-table" class="mobile-season-anchor"></span>', unsafe_allow_html=True)
         st.subheader('Premier League')
         s=st.session_state.season
         simulated=s['table'] if s else empty_table()

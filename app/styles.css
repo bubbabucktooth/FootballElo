@@ -15,6 +15,7 @@
   --accent: #a687eb;
   --radius: 16px;
 }
+
 html, body, .stApp, .stApp p, .stApp label, .stApp input, .stApp button,
 .stApp select, .stApp textarea, .stApp table, .stApp h1, .stApp h2, .stApp h3,
 [data-baseweb="select"], [data-baseweb="popover"], [role="dialog"] {
@@ -954,4 +955,72 @@ hr { border-color: var(--border) !important; margin: var(--space-2) 0 !important
   .season-finish-summary { gap: 6px; }
   .season-finish-summary div { padding: 8px; }
   .season-finish-summary strong { font-size: 1rem; }
+}
+
+/* Alternative phone layouts never alter the desktop presentation. */
+.mobile-match-history, .mobile-season-nav { display: none; }
+@media (min-width: 641px) {
+  [data-testid="stElementContainer"]:has(.mobile-season-anchor),
+  [data-testid="stElementContainer"]:has(.mobile-match-history) { display: none; }
+}
+@media (max-width: 640px) {
+  .block-container { padding-top: 12px; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-go_home):has(.st-key-open_about) { flex-wrap: nowrap; gap: 8px; align-items: center; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-go_home):has(.st-key-open_about) > [data-testid="stColumn"] { min-width: 0 !important; flex: 1 1 0 !important; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-go_home):has(.st-key-open_about) > [data-testid="stColumn"]:last-child { flex: 0 0 104px !important; }
+  .st-key-go_home button { max-width: 140px; }
+  .st-key-open_about button { min-height: 44px; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-open_main_menu):has(.st-key-game_mode) { flex-wrap: nowrap; gap: 8px; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-open_main_menu):has(.st-key-game_mode) > [data-testid="stColumn"] { min-width: 0 !important; flex: 1 1 0 !important; }
+  [data-testid="stHorizontalBlock"]:has(.st-key-open_main_menu):has(.st-key-game_mode) > [data-testid="stColumn"]:first-child { flex: 0 0 44px !important; }
+  .st-key-open_main_menu button { padding: 8px; min-width: 44px; min-height: 44px; }
+  .st-key-open_main_menu button [data-testid="stMarkdownContainer"] { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  .st-key-game_mode button { padding: 8px 6px !important; min-height: 44px; }
+  .st-key-game_mode button p { font-size: .75rem; }
+  .st-key-game_mode [data-testid="stIconMaterial"] { display: none; }
+  .st-key-game_mode, .st-key-game_mode [data-testid="stButtonGroup"] { width: 100%; }
+  .st-key-game_mode [role="radiogroup"] { flex-wrap: nowrap; gap: 0; width: 100%; max-width: none; }
+  .st-key-game_mode button { flex: 1 1 0; min-width: 0; }
+  .st-key-game_mode button::before { display: none; }
+  .st-key-game_mode button { gap: 0; }
+  .st-key-game_mode button span:has(> [data-testid="stIconMaterial"]) { display: none; }
+  .st-key-game_mode button [data-has-shortcut] { gap: 0; }
+  .st-key-round_choices [data-testid="stHorizontalBlock"] { flex-wrap: nowrap; gap: 8px; }
+  .st-key-round_choices [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { min-width: 0 !important; flex: 1 1 0 !important; }
+  [class*="st-key-round_choice_"] { padding: 3px; }
+  [class*="st-key-round_choice_"] [data-testid="stElementContainer"]:has(.round-pitch) { display: none; }
+  [class*="st-key-round_choice_"] button { padding: 8px 4px; min-height: 48px; }
+  [class*="st-key-round_choice_"] button p { font-family: 'Segoe UI', sans-serif !important; font-size: .85rem; font-weight: 700; text-transform: none; word-break: normal; overflow-wrap: normal; }
+  [class*="st-key-mode_card_"] button { padding: 12px; }
+  [class*="st-key-mode_card_"] button [data-testid="stMarkdownContainer"] { display: grid; grid-template-columns: 90px minmax(0,1fr); gap: 6px 12px; }
+  [class*="st-key-mode_card_"] button p { grid-column: 2; margin: 0 !important; font-size: .85rem; }
+  [class*="st-key-mode_card_"] button p:has(img) { grid-column: 1; grid-row: 1 / span 3; align-self: center; }
+  [class*="st-key-mode_card_"] button strong { font-size: .8rem; }
+  [class*="st-key-mode_card_"] button p:last-child { font-size: .75rem; padding-top: 6px; }
+  .st-key-kick_choices [data-testid="stHorizontalBlock"] { overflow: visible; flex-wrap: nowrap; gap: 4px; padding: 4px; }
+  .st-key-kick_choices [data-testid="stColumn"] { min-width: 0 !important; flex: 1 1 0 !important; }
+  .st-key-kick_choices .stButton button { min-height: 92px; padding: 8px 3px; }
+  .st-key-kick_choices .stButton button p { font-size: .75rem; overflow-wrap: anywhere; }
+  .st-key-kick_choices .stButton button strong { font-size: .78rem; }
+  .match-history, .match-strength, .own-team-label, .kick-round-summary span { font-size: .75rem; }
+  .league-table { font-size: .8rem; }
+  .has-mobile-history { display: none; }
+  [data-testid="stElementContainer"]:has(.has-mobile-history) { display: none; }
+  .mobile-match-history { display: grid; gap: 12px; }
+  .mobile-history-card { background: #211833; border: 1px solid #786098; padding: 14px; }
+  .mobile-history-card header { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; color: #c4b7dd; font-size: .8rem; }
+  .mobile-history-card header span { color: #d2baff; }
+  .mobile-history-card p { display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; margin: 12px 0 !important; font-size: .95rem; }
+  .mobile-history-card p span { color: #c4b7dd; font-size: .8rem; }
+  .mobile-history-card summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; color: #d2baff; font-size: .8rem; border-top: 1px solid #665180; }
+  .mobile-history-card summary::before { content: '▸'; margin-right: 8px; }
+  .mobile-history-card details[open] summary::before { content: '▾'; }
+  .mobile-history-card details > div { padding: 4px 0 10px; font-size: .85rem; }
+  .mobile-season-nav { position: fixed; bottom: 12px; left: 16px; right: 16px; z-index: 50; display: flex; background: #211833; border: 1px solid #b99aef; box-shadow: 0 3px 0 #10091d, 0 0 16px #00000060; }
+  .mobile-season-nav a { display: flex; flex: 1; justify-content: center; align-items: center; min-height: 48px; padding: 8px; color: #f4f1fc; text-decoration: none; font-size: .85rem; }
+  .mobile-season-nav a + a { border-left: 1px solid #665180; }
+  .mobile-season-nav a:focus-visible { outline: 2px solid #d2baff; outline-offset: -4px; }
+  .mobile-season-anchor { display: block; scroll-margin-top: 16px; }
+  .stApp:has(.mobile-season-nav) .block-container { padding-bottom: 88px; }
+  [role="dialog"] { z-index: 100; }
 }

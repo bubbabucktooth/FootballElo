@@ -12,7 +12,7 @@ from streamlit.testing.v1 import AppTest
 from statistics_store import (StatisticsError, SupabaseStore, kick_event, final_rows,
                               season_payload, sync_season, flush_kicks, new_run_id, probabilities)
 from statistics_page import season_overview_charts, season_summary_cards, kick_summary_cards
-from ui_tables import render_table
+from ui_tables import render_table, mobile_history_cards
 
 ROOT = Path(__file__).parent
 
@@ -200,6 +200,16 @@ class PersistenceTests(unittest.TestCase):
 
 
 class StatisticsInterfaceTests(unittest.TestCase):
+    def test_mobile_history_shows_short_utc_dates_and_escaped_match_data(self):
+        cards = mobile_history_cards([{'Tid (UTC)': '2026-10-20T14:17:26.249018+00:00',
+            'Hemma': '<Arsenal>', 'Borta': 'Chelsea', 'Utfall': 'Hemmavinst',
+            '1 %': 50, 'X %': 25, '2 %': 25}])
+        self.assertIn('20/10 14:17 UTC', cards)
+        self.assertIn('&lt;Arsenal&gt;', cards)
+        self.assertNotIn('<Arsenal>', cards)
+        self.assertIn('<details>', cards)
+        self.assertIn('1: 50.0 %', cards)
+
     def test_match_dates_sort_chronologically_across_months_and_years(self):
         app = AppTest.from_string('''
 import pandas as pd

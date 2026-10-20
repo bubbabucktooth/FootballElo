@@ -230,7 +230,8 @@ def render_statistics(store, teams, current_version, actual_points):
                                 'Utfall': labels[r['outcome']], '1 %': 100*float(r['p_h']),
                                 'X %': 100*float(r['p_d']), '2 %': 100*float(r['p_a'])} for r in history]
                     statistics_table(pd.DataFrame(records), 'kick_history',
-                                     formats={'1 %': '{:.1f}', 'X %': '{:.1f}', '2 %': '{:.1f}'}, compact=True, descending=True)
+                                     formats={'1 %': '{:.1f}', 'X %': '{:.1f}', '2 %': '{:.1f}'}, compact=True, descending=True,
+                                     mobile_history=True)
                     st.caption('Sortering gäller matcherna på den här sidan. Senaste matcherna visas på sida 1.')
                 else:
                     st.write('Inga registrerade matcher för de valda filtren ännu.')

@@ -5,7 +5,7 @@ import streamlit as st
 
 
 def render_table(frame, key, selected=None, formats=None, *, compact=False,
-                 date_columns=(), descending=False):
+                 date_columns=(), descending=False, mobile_history=False):
     """Use the league table's presentation with explicit sorting and CSV export."""
     formats = formats or {}
     frame = frame.copy()
@@ -44,7 +44,25 @@ def render_table(frame, key, selected=None, formats=None, *, compact=False,
         own = 'own-team' if selected is not None and record.get('Lag') == selected else ''
         rows.append(f'<tr class="{own}">' + ''.join(cells) + '</tr>')
     minimum_width = max(380, len(frame.columns) * 100)
-    st.markdown('<div class="league-wrap statistics-table-wrap">'
+    mobile_class = ' has-mobile-history' if mobile_history else ''
+    st.markdown(f'<div class="league-wrap statistics-table-wrap{mobile_class}">'
                 f'<table class="league-table statistics-table" style="min-width:{minimum_width}px">'
                 '<thead><tr>' + headers + '</tr></thead><tbody>' + ''.join(rows) + '</tbody></table></div>',
                 unsafe_allow_html=True)
+    if mobile_history:
+        st.markdown(mobile_history_cards(ordered.to_dict('records')), unsafe_allow_html=True)
+
+
+def mobile_history_cards(records):
+    """Keep full timestamps and the table on desktop; show readable match cards on phones."""
+    cards = []
+    for record in records:
+        timestamp = pd.to_datetime(record['Tid (UTC)'], utc=True)
+        date = timestamp.strftime('%d/%m %H:%M UTC')
+        home, away, outcome = (escape(str(record[name])) for name in ('Hemma', 'Borta', 'Utfall'))
+        chances = ' · '.join(f'{label}: {float(record[name]):.1f} %'
+                             for label, name in (('1', '1 %'), ('X', 'X %'), ('2', '2 %')))
+        cards.append(f'<article class="mobile-history-card"><header><time datetime="{timestamp.isoformat()}">{date}</time>'
+                     f'<span>{outcome}</span></header><p><strong>{home}</strong><span>mot</span><strong>{away}</strong></p>'
+                     f'<details><summary>Modellens sannolikheter</summary><div>{chances}</div></details></article>')
+    return '<div class="mobile-match-history">' + ''.join(cards) + '</div>'
