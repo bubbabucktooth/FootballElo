@@ -734,3 +734,140 @@ hr { border-color: var(--border) !important; margin: var(--space-2) 0 !important
   [data-testid="stTabs"] [role="tablist"] { gap: 2px; padding: 4px; min-height: 54px; }
   [data-testid="stTabs"] [role="tab"] { padding: 10px 14px; font-size: .85rem; }
 }
+
+/* Main menu: each native button is the entire illustrated card. */
+[class*="st-key-mode_card_"] button[kind="secondary"] {
+  min-height: 360px;
+  height: 100%;
+  padding: 12px;
+  background: #211833;
+  color: #f4f1fc;
+  border: 2px solid #9673c0;
+  box-shadow: inset 0 2px 0 #b99aef30, 0 4px 0 #090516;
+  align-items: stretch;
+}
+[class*="st-key-mode_card_"] button[kind="secondary"]:hover:not(:disabled) {
+  background: #302451;
+  color: #ffffff;
+  border-color: #d2baff;
+}
+[class*="st-key-mode_card_"] button[kind="secondary"]:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 0 1px 0 #b99aef30, 0 2px 0 #090516;
+}
+[class*="st-key-mode_card_"] button [data-testid="stMarkdownContainer"] { width: 100%; }
+[class*="st-key-mode_card_"] button p {
+  font-family: 'Segoe UI', Arial, sans-serif !important;
+  font-size: .95rem;
+  font-weight: 400;
+  font-style: normal;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.5;
+  text-align: left;
+  white-space: normal;
+  margin: 0 0 12px;
+}
+[class*="st-key-mode_card_"] button p:has(img) { line-height: 0; margin-bottom: 20px; }
+[class*="st-key-mode_card_"] button img {
+  display: block;
+  width: 100%;
+  height: auto !important;
+  max-width: 100%;
+  max-height: none !important;
+  border: 1px solid #786098;
+  image-rendering: pixelated;
+}
+[class*="st-key-mode_card_"] button strong {
+  font-family: 'BTM Pixel', 'Segoe UI', sans-serif;
+  font-size: .95rem;
+  font-weight: 400;
+  color: #faf5ff;
+  line-height: 1.6;
+}
+[class*="st-key-mode_card_"] button p:last-child {
+  color: #d2baff;
+  font-size: .8rem;
+  padding-top: 12px;
+  border-top: 1px solid #786098;
+  margin-bottom: 0;
+}
+@media (max-width: 640px) {
+  [class*="st-key-mode_card_"] button[kind="secondary"] { min-height: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [class*="st-key-mode_card_"] button:active:not(:disabled) { transform: none; }
+}
+
+/* Kick-off rounds: visible progress and compact probability-based decisions. */
+.kick-round-track {
+  display: grid;
+  grid-template-columns: repeat(var(--match-count), minmax(0, 1fr));
+  gap: 3px;
+  margin: 4px 0;
+}
+.kick-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  border: 1px solid #665180;
+  background: #1a142b;
+  color: #c4b7dd;
+  font-size: .65rem;
+  font-weight: 700;
+}
+.kick-step-current { border: 2px solid #e6d4ff; background: #493363; color: #ffffff; }
+.kick-step-win { background: #278357; color: #ffffff; border-color: #97e4b9; }
+.kick-step-draw { background: #514c69; color: #ffffff; border-color: #c4b7dd; }
+.kick-step-loss { background: #833344; color: #ffffff; border-color: #efabb8; }
+.kick-challenge-heading { display: flex; flex-wrap: wrap; gap: 4px 16px; align-items: baseline; }
+.kick-challenge-heading strong { color: #faf5ff; text-transform: uppercase; font-size: .85rem; }
+.kick-challenge-heading span { color: #d2baff; font-size: .8rem; }
+.st-key-kick_choices .stButton button {
+  min-height: 70px;
+  padding: 8px 6px;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+.st-key-kick_choices .stButton button p {
+  font-size: .75rem;
+  font-weight: 400;
+  line-height: 1.45;
+  text-transform: none;
+  letter-spacing: 0;
+  text-align: left;
+  margin: 0 0 5px;
+}
+.st-key-kick_choices .stButton button strong { font-size: .8rem; font-weight: 800; }
+.st-key-kick_choices .stButton button p:last-child { font-weight: 700; margin-bottom: 0; }
+@media (max-width: 640px) {
+  .kick-round-track { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+  .st-key-kick_choices [data-testid="stHorizontalBlock"] { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 6px; }
+  .st-key-kick_choices [data-testid="stColumn"] { min-width: 120px !important; flex: 1 0 120px !important; }
+}
+
+/* One match surface, with a quiet selector and a single primary action. */
+.kick-summary { padding: 10px 14px; margin-bottom: 8px; }
+.kick-summary .season-details { flex-direction: row; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.kick-summary .season-details > span { font-size: .75rem; }
+.st-key-kick_choices [data-testid="stHorizontalBlock"] { gap: 4px; padding: 5px; background: #1a142b; border: 1px solid #665180; }
+.st-key-kick_choices .stButton button[kind="secondary"] {
+  background: transparent; color: #c4b7dd; border: 1px solid transparent; box-shadow: none;
+}
+.st-key-kick_choices .stButton button[kind="secondary"]:hover { background: #302343; color: #faf5ff; border-color: #786098; }
+.st-key-kick_choices .stButton button[kind="primary"] { box-shadow: inset 0 1px 0 #c4b7dd; border: 1px solid #b9a0ee; }
+.st-key-kick_match_card { background: #211a32; border: 1px solid #947bb5; padding: 14px !important; }
+.st-key-kick_match_card .match-card { border: 0; box-shadow: none; margin: 0; padding: 12px 0; }
+.kick-forecast { display: grid; grid-template-columns: repeat(3,1fr); padding: 12px 0; margin: 0 0 12px; border-top: 1px solid #665180; border-bottom: 1px solid #665180; }
+.kick-forecast div { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+.kick-forecast div + div { border-left: 1px solid #493363; }
+.kick-forecast span { font-size: .75rem; color: #c4b7dd; }
+.kick-forecast strong { font-size: 1.15rem; color: #faf5ff; }
+.kick-forecast small { font-size: .75rem; color: #c4b7dd; }
+.kick-forecast div:first-child small { color: #97e4b9; }
+.kick-forecast div:last-child small { color: #efabb8; }
+.kick-round-summary { display: flex; gap: 24px; padding: 14px 0; border-top: 1px solid #665180; border-bottom: 1px solid #665180; margin-bottom: 14px; }
+.kick-round-summary div { display: flex; flex-direction: column; gap: 4px; }
+.kick-round-summary span { font-size: .8rem; color: #c4b7dd; }
+.kick-round-summary strong { font-size: 1.1rem; color: #faf5ff; }

@@ -20,7 +20,8 @@ def simulation_namespace():
              'update_states', 'simulate_day', 'advance_to_own_match', 'standings',
              'season_results', 'winning_streak', 'league_position', 'result_reaction',
              'play_next_match', 'match_context', 'title_status', 'relegation_notice', 'team_badge',
-             'actual_snapshot', 'points_difference', 'season_comparison', 'simulate_batch', 'results_text'}
+             'actual_snapshot', 'points_difference', 'season_comparison', 'simulate_batch', 'results_text',
+             'kick_challenges', 'kick_reaction', 'kick_round_track'}
     functions = ast.Module(body=[node for node in tree.body
         if (isinstance(node, ast.FunctionDef) and node.name in names) or
            (isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'TEAM_KITS' for t in node.targets))], type_ignores=[])
@@ -33,6 +34,49 @@ def simulation_namespace():
 
 
 class SeasonTests(unittest.TestCase):
+    def test_kick_challenges_use_distinct_opponents_and_honest_risk_labels(self):
+        scope = self.scope
+        states = {team: {} for team in ('Us', 'Easy', 'Even', 'Hard', 'Last')}
+        def probabilities(home, away, _):
+            opponent = away if home == 'Us' else home
+            pw = {'Easy': .65, 'Even': .4, 'Hard': .15, 'Last': .55}[opponent]
+            return {'H': pw if home == 'Us' else .8-pw, 'D': .2,
+                    'A': .8-pw if home == 'Us' else pw}
+        with patch.dict(scope, predict=probabilities):
+            choices = scope['kick_challenges']('Us', states, [{'Hemma': 'Us', 'Borta': 'Last'}])
+        self.assertEqual([c['opponent'] for c in choices], ['Easy', 'Even', 'Hard'])
+        self.assertEqual([c['title'] for c in choices], ['Favorit', 'Jämn match', 'Underdog'])
+        for choice in choices:
+            self.assertEqual(choice['reward'], round(100/choice['pw']))
+            self.assertEqual(choice['penalty'], round(100*choice['pw']))
+        with patch.dict(scope, predict=lambda *_: {'H': .7, 'D': .2, 'A': .1}):
+            # Make the team the home side for the strongest option; check each
+            # advertised label against the actual probabilities, not the rank.
+            for choice in scope['kick_challenges']('Us', states, []):
+                if choice['title'] == 'Underdog':
+                    self.assertLess(choice['pw'], choice['pa'])
+                if choice['title'] == 'Jämn match':
+                    self.assertLessEqual(abs(choice['pw']-choice['pa']), .15)
+
+    def test_kick_reactions_and_round_track_use_the_round_history(self):
+        scope = self.scope
+        history = [{'Hemma': 'Us', 'Borta': 'Easy', 'Utfall': 'Vinst', 'Poäng': 150, 'Totalpoäng': 150},
+                   {'Hemma': 'Us', 'Borta': 'Even', 'Utfall': 'Vinst', 'Poäng': 250, 'Totalpoäng': 400}]
+        text = scope['kick_reaction']('Us', 'Hard', 'Us', 'A', 667, 1067, .15, .65, history)
+        self.assertIn('Underdogseger', text)
+        self.assertIn('första bortaseger', text)
+        self.assertIn('3 raka vinster', text)
+        text = scope['kick_reaction']('Us', 'Us', 'Easy', 'H', 150, 550, .65, .15, [])
+        self.assertIn('Nytt omgångsbästa', text)
+        text = scope['kick_reaction']('Us', 'Us', 'Hard', 'A', -15, 385, .15, .65, history)
+        self.assertIn('Segersviten på 2 matcher bröts', text)
+        self.assertIn('15 poäng från omgångens bästa', text)
+        markup = scope['kick_round_track'](10, history)
+        self.assertEqual(markup.count('role="listitem"'), 10)
+        self.assertEqual(markup.count('aria-current="step"'), 1)
+        self.assertIn('Match 3: nästa match', markup)
+        self.assertNotIn('aria-current', scope['kick_round_track'](2, history))
+
     def test_result_counts_use_singular_and_plural(self):
         label = simulation_namespace()['results_text']
         self.assertEqual(label(1, 1, 1), '1 vinst · 1 oavgjord · 1 förlust')
@@ -218,6 +262,60 @@ class SeasonTests(unittest.TestCase):
 
 
 class InterfaceTests(unittest.TestCase):
+    def test_kick_choice_updates_preview_and_next_match_changes_suggestions(self):
+        app = AppTest.from_file(str(APP), default_timeout=60)
+        app.session_state['app_started'] = True
+        app.run()
+        next(b for b in app.button if b.key == 'choose_round_10').click().run()
+        next(b for b in app.button if b.label == 'Starta omgång').click().run()
+        choice = dict(app.session_state['kick']['challenges'][2])
+        next(b for b in app.button if b.key == 'kick_challenge_2').click().run()
+        self.assertEqual(app.session_state['kick_opponent'], choice['opponent'])
+        self.assertEqual(app.session_state['kick_venue'], choice['venue'])
+        outcome = 'H' if choice['venue'] == 'Hemma' else 'A'
+        with patch('numpy.random.choice', return_value=outcome):
+            next(b for b in app.button if b.label == 'Spela match').click().run()
+        self.assertEqual(app.session_state['kick']['points'], choice['reward'])
+        self.assertEqual(app.session_state['pending_result']['delta'], choice['reward'])
+        self.assertIn('reaction', app.session_state['pending_result'])
+        self.assertTrue(all(c['opponent'] != choice['opponent'] for c in app.session_state['kick']['challenges']))
+        next(b for b in app.button if b.key == 'close_result').click().run()
+        before = app.session_state['kick']['points']
+        app.run()
+        self.assertEqual(app.session_state['kick']['points'], before)
+        self.assertEqual(app.session_state['kick']['matches'], 1)
+        self.assertFalse(app.exception)
+
+    def test_main_menu_preserves_both_games_and_supports_direct_navigation(self):
+        app = AppTest.from_file(str(APP), default_timeout=60).run()
+        next(b for b in app.button if b.label == 'Spela nu').click().run()
+        self.assertEqual(app.session_state['app_view'], 'menu')
+        self.assertEqual(len([b for b in app.button if str(b.key).startswith('choose_mode_')]), 3)
+        next(b for b in app.button if b.key == 'choose_mode_kick').click().run()
+        next(b for b in app.button if b.key == 'choose_round_10').click().run()
+        next(b for b in app.button if b.label == 'Starta omgång').click().run()
+        next(b for b in app.button if b.label == 'Spela match').click().run()
+        next(b for b in app.button if b.key == 'close_result').click().run()
+        kick_id = app.session_state['kick']['run_id']
+        kick_points = app.session_state['kick']['points']
+        next(b for b in app.button if b.label == 'Huvudmeny').click().run()
+        card = next(b for b in app.button if b.key == 'choose_mode_kick')
+        self.assertIn('1 av 10 matcher', card.label)
+        next(b for b in app.button if b.key == 'choose_mode_season').click().run()
+        next(b for b in app.button if b.label == 'Starta säsong').click().run()
+        season_id = app.session_state['season']['run_id']
+        app.get('button_group')[0].set_value('Statistik').run()
+        next(b for b in app.button if b.key == 'go_home').click().run()
+        self.assertIn('0 av 38 matcher', next(b for b in app.button if b.key == 'choose_mode_season').label)
+        next(b for b in app.button if b.key == 'choose_mode_kick').click().run()
+        self.assertEqual(app.session_state['kick']['run_id'], kick_id)
+        self.assertEqual(app.session_state['kick']['points'], kick_points)
+        self.assertEqual(app.session_state['kick']['matches'], 1)
+        app.get('button_group')[0].set_value('Säsong').run()
+        self.assertEqual(app.session_state['season']['run_id'], season_id)
+        self.assertEqual(app.session_state['season']['table']['Arsenal']['P'], 0)
+        self.assertFalse(app.exception)
+
     def test_about_dialog_closes_without_starting_game(self):
         app = AppTest.from_file(str(APP), default_timeout=60).run()
         next(b for b in app.button if b.key == 'open_about').click().run()
@@ -266,6 +364,7 @@ class InterfaceTests(unittest.TestCase):
     def test_quick_three_then_finish_and_new_season(self):
         app = AppTest.from_file(str(APP), default_timeout=60).run()
         next(b for b in app.button if b.label == 'Spela nu').click().run()
+        next(b for b in app.button if b.key == 'choose_mode_kick').click().run()
         app.get('button_group')[0].set_value('Säsong').run()
         next(b for b in app.button if b.label == 'Starta säsong').click().run()
         self.assertTrue(any('Inte spelat ännu' in m.value for m in app.markdown))
@@ -320,6 +419,7 @@ class InterfaceTests(unittest.TestCase):
     def test_kickoff_overlay_all_outcomes_and_away_perspective(self):
         app = AppTest.from_file(str(APP), default_timeout=30).run()
         next(b for b in app.button if b.label == 'Spela nu').click().run()
+        next(b for b in app.button if b.key == 'choose_mode_kick').click().run()
         next(b for b in app.button if b.key == 'choose_round_10').click().run()
         next(b for b in app.button if b.label.startswith('Starta om')).click().run()
         for index, (venue, outcome, label) in enumerate([
@@ -346,8 +446,9 @@ class InterfaceTests(unittest.TestCase):
         self.assertFalse(app.exception)
         self.assertIn('Spela nu', [b.label for b in app.button])
         next(b for b in app.button if b.label == 'Spela nu').click().run()
+        next(b for b in app.button if b.key == 'choose_mode_kick').click().run()
         self.assertFalse(app.exception)
-        self.assertTrue(next(b for b in app.button if b.key == 'go_home').label.startswith('![Till startsidan](data:image/svg+xml;base64,'))
+        self.assertTrue(next(b for b in app.button if b.key == 'go_home').label.startswith('![Till huvudmenyn](data:image/svg+xml;base64,'))
         app.get('button_group')[0].set_value('Säsong').run()
         next(b for b in app.button if b.label == 'Starta säsong').click().run()
         self.assertFalse(app.exception)
@@ -368,7 +469,7 @@ class InterfaceTests(unittest.TestCase):
         self.assertEqual(app.session_state['season']['table'][season['team']]['P'], played)
         self.assertFalse(any('Matchpoäng' in m.value for m in app.markdown))
         next(b for b in app.button if b.key == 'go_home').click().run()
-        self.assertIn('Spela nu', [b.label for b in app.button])
+        self.assertTrue(any(b.key == 'choose_mode_season' for b in app.button))
         self.assertEqual(app.session_state['season']['table'][season['team']]['P'], played)
 
 

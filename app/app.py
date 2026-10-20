@@ -90,8 +90,8 @@ Det är just den osäkerheten som Beat the Model utforskar.
 brand,about=st.columns([3,1],gap='large',vertical_alignment='center')
 with brand:
     if st.session_state.get('app_started', False):
-        if st.button(f'![Till startsidan]({logo_data_uri()})', key='go_home', width=160):
-            st.session_state.app_started = False
+        if st.button(f'![Till huvudmenyn]({logo_data_uri()})', key='go_home', width=160):
+            st.session_state.app_view = 'menu'
             st.rerun()
 with about:
     if st.button('Om appen', icon=':material/info:', key='open_about'):
@@ -102,6 +102,7 @@ if not st.session_state.get('app_started', False):
     with play_column:
         if st.button('Spela nu', type='primary', use_container_width=True):
             st.session_state.app_started = True
+            st.session_state.app_view = 'menu'
             st.rerun()
     st.stop()
 
@@ -314,8 +315,8 @@ def show_match_result(result):
         winner = result['home'] if result['outcome'] == 'H' else result['away'] if result['outcome'] == 'A' else None
         match_card(result['home'], result['away'], {'H': '1', 'D': 'X', 'A': '2'}[result['outcome']],
                    'KICK-OFF · MATCHUTFALL', winner=winner, tone=tone)
-        st.write({'Vinst': 'Segern är din! Poängen är inne.', 'Oavgjort': 'Delad pott. Redo för ett nytt försök?',
-                  'Förlust': 'Motståndaren vann den här gången. Ladda om!'}[result['result']])
+        st.write(result.get('reaction') or {'Vinst': 'Segern är din! Poängen är inne.', 'Oavgjort': 'Delad pott. Redo för ett nytt försök?',
+                                           'Förlust': 'Motståndaren vann den här gången. Ladda om!'}[result['result']])
         st.markdown('<div class="result-grid kick-grid result-reveal">'
                     f'<div class="result-stat"><strong>{result["delta"]:+d}</strong><small>Poäng den här matchen</small></div>'
                     f'<div class="result-stat"><strong>{result["points"]:+d}</strong><small>Totalpoäng</small></div></div>',
@@ -840,6 +841,205 @@ def round_illustration(count):
             '<span class="pixel-ball"></span></div>')
 
 
+def kick_challenges(own, states, history):
+    """Offer distinct opponents, ranked by actual probabilities, without changing the model."""
+    recent = {r['Borta'] if r['Hemma'] == own else r['Hemma'] for r in history[-3:]}
+    opponents = [t for t in sorted(states) if t != own and t not in recent]
+    if len(opponents) < 3:
+        opponents = [t for t in sorted(states) if t != own]
+    candidates = []
+    for opponent in opponents:
+        for venue in ('Hemma', 'Borta'):
+            h, a = (own, opponent) if venue == 'Hemma' else (opponent, own)
+            probabilities = predict(h, a, states)
+            pw = float(probabilities['H' if venue == 'Hemma' else 'A'])
+            pa = float(probabilities['A' if venue == 'Hemma' else 'H'])
+            candidates.append(dict(opponent=opponent, venue=venue, pw=pw, pa=pa,
+                                   draw=float(probabilities['D']), reward=round(100/pw), penalty=round(100*pw)))
+    if not candidates:
+        return []
+    easy = max(candidates, key=lambda c: c['pw'])
+    remaining = [c for c in candidates if c['opponent'] != easy['opponent']]
+    hard = min(remaining or candidates, key=lambda c: c['pw'])
+    remaining = [c for c in candidates if c['opponent'] not in (easy['opponent'], hard['opponent'])]
+    even = min(remaining or candidates, key=lambda c: abs(c['pw']-c['pa']))
+    return [dict(easy, title='Favorit' if easy['pw'] > max(easy['pa'], easy['draw']) else 'Bästa vinstchansen'),
+            dict(even, title='Jämn match' if abs(even['pw']-even['pa']) <= .15 else 'Närmaste mötet'),
+            dict(hard, title='Underdog' if hard['pw'] < hard['pa'] else 'Tuffaste mötet')]
+
+
+def choose_kick_challenge(opponent, venue):
+    st.session_state.kick_opponent = opponent
+    st.session_state.kick_venue = venue
+    st.session_state['kick']['selected_match'] = (opponent, venue)
+
+
+def kick_round_track(limit, history):
+    labels = {'Vinst': ('win', 'V'), 'Oavgjort': ('draw', 'O'), 'Förlust': ('loss', 'F')}
+    steps = []
+    for index in range(limit):
+        if index < len(history):
+            row = history[index]
+            tone, text = labels[row['Utfall']]
+            label = f'Match {index+1}: {row["Hemma"]} mot {row["Borta"]}, {row["Utfall"]}, {row["Poäng"]:+d} poäng'
+            current = ''
+        else:
+            tone = 'current' if index == len(history) else 'future'
+            text = str(index+1)
+            label = f'Match {index+1}: ' + ('nästa match' if tone == 'current' else 'inte spelad')
+            current = ' aria-current="step"' if tone == 'current' else ''
+        steps.append(f'<span class="kick-step kick-step-{tone}" role="listitem" title="{escape(label, quote=True)}" '
+                     f'aria-label="{escape(label, quote=True)}"{current}>{text}</span>')
+    return (f'<div class="kick-round-track" role="list" aria-label="Omgångens matcher" '
+            f'style="--match-count:{limit}">' + ''.join(steps) + '</div>')
+
+
+def kick_reaction(own, home, away, outcome, delta, points, pw, pa, history):
+    """React to real round milestones; never award additional points or bonuses."""
+    won = (home == own and outcome == 'H') or (away == own and outcome == 'A')
+    best = max([0] + [r['Totalpoäng'] for r in history])
+    streak = 0
+    for row in reversed(history):
+        if row['Utfall'] != 'Vinst':
+            break
+        streak += 1
+    if won:
+        lead = f'Underdogseger! Du tog {delta} poäng mot oddsen.' if pw < pa else f'Seger! +{delta} poäng till omgången.'
+        milestones = []
+        if away == own and not any(r['Borta'] == own and r['Utfall'] == 'Vinst' for r in history):
+            milestones.append('Din första bortaseger i omgången!')
+        if streak >= 2:
+            milestones.append(f'{streak+1} raka vinster!')
+        if points > best:
+            milestones.append(f'Nytt omgångsbästa: {points:+d} poäng.')
+        return ' '.join([lead] + milestones[:2])
+    if outcome == 'D':
+        return f'Delad pott. Totalen står kvar på {points:+d} poäng — nästa match kan lyfta omgången.'
+    lead = f'Segersviten på {streak} matcher bröts.' if streak >= 2 else f'Förlust. {delta} poäng den här matchen.'
+    return lead + (f' Du är {best-points} poäng från omgångens bästa.' if best > 0 else ' Nästa match är en ny chans.')
+
+
+def menu_illustration(mode, team='Arsenal'):
+    """Small original game scenes with a shared stadium and robot mascot."""
+    def sprite(name, x, y, pose='neutral'):
+        return team_badge(name, pose).replace('<svg ', f'<svg x="{x}" y="{y}" width="64" height="100" ', 1)
+
+    def robot(x, y, scale=1):
+        return (f'<g transform="translate({x} {y}) scale({scale})">'
+                '<path d="M0-15v5" stroke="#b99aef" stroke-width="2"/>'
+                '<path d="M-2-18h4v4h-4z" fill="#ef6671"/>'
+                '<path d="M-14-4h4v9h-4z M10-4h4v9h-4z" fill="#9673c0"/>'
+                '<path d="M-10-10h20v20h-20z" fill="#e5d9fa" stroke="#786098" stroke-width="2"/>'
+                '<path d="M-7-6H7v9H-7z" fill="#211833"/>'
+                '<path d="M-5-4h3v4h-3z M2-4h3v4H2z" fill="#91eced"/>'
+                '<path d="M-3 6h6" stroke="#786098" stroke-width="2"/></g>')
+
+    crowd = ''.join(f'<rect x="{x}" y="{y}" width="4" height="4" fill="{color}"/>'
+                    for row, y in enumerate((30, 45, 60)) for index, x in enumerate(range(8, 320, 12))
+                    for color in [('#9673c0', '#493363', '#c4b7dd', '#7651bc')[(index + row) % 4]])
+    backdrop = ('<rect width="320" height="180" fill="#1b1530"/>'
+                '<path d="M0 24H320M0 40H320M0 56H320M0 72H320" stroke="#302451" stroke-width="8"/>'
+                + crowd + '<path d="M0 78H320" stroke="#b99aef" stroke-width="3"/>'
+                '<path d="M20 0V23M300 0V23" stroke="#786098" stroke-width="3"/>'
+                '<path d="M8 7H32M288 7H312" stroke="#e6d4ff" stroke-width="6"/>')
+    if mode == 'Kick-off':
+        shirt, trim, shorts, pattern = TEAM_KITS.get(team, TEAM_KITS['Arsenal'])
+        sleeves = trim if pattern == 'sleeves' else shirt
+        stripes = ''.join(f'<rect x="{x}" y="11" width="2" height="8" fill="{trim}"/>'
+                          for x in (9, 13)) if pattern == 'stripes' else ''
+        shooter = ('<g transform="translate(42 76) scale(2.4)">'
+                   '<path d="M7 29H25" stroke="#173a35" stroke-width="2"/>'
+                   '<path d="M9 2h6v1h2v5h-2v2H9V8H7V3h2z" fill="#e0ac86"/>'
+                   '<path d="M9 1h6v1h2v3h-3V3H9v2H7V2h2z" fill="#352a30"/>'
+                   f'<path d="M8 10h8v10H8z" fill="{shirt}"/>{stripes}'
+                   f'<path d="M10 10h4v2h-4z" fill="{trim}"/>'
+                   f'<path d="M5 11h3v6H5z M16 11h3v4h-3z" fill="{sleeves}"/>'
+                   '<path d="M4 16h3v5H4z M18 14h5v3h-5z" fill="#e0ac86"/>'
+                   f'<path d="M8 20h8v4H8z" fill="{shorts}"/>'
+                   f'<path d="M8 24h3v5H8z M14 23h5v-2h4v3h-4v2h-5z" fill="{shirt}"/>'
+                   '<path d="M6 28h5v2H6z M21 20h5v3h-5z" fill="#faf5ff"/></g>')
+        net = ''.join(f'<path d="M{x} 54V145"/>' for x in range(204, 300, 12))
+        net += ''.join(f'<path d="M196 {y}H300"/>' for y in range(66, 146, 12))
+        scene = ('<path d="M0 81H320V180H0z" fill="#294d49"/>'
+                 '<path d="M0 81H48V180H0z M96 81H144V180H96z M192 81H240V180H192z M288 81H320V180H288z" fill="#315a53"/>'
+                 '<path d="M0 166H320M183 152H309V91" fill="none" stroke="#c4ddd0" stroke-width="2"/>'
+                 '<g fill="none" stroke="#c4ddd0" stroke-width="1" opacity=".45">' + net + '</g>'
+                 '<path d="M196 145V54H300V145" fill="none" stroke="#faf5ff" stroke-width="4"/>'
+                 '<g transform="translate(250 67) rotate(52)">'
+                 + sprite('Chelsea', -32, -32, 'win') + '</g>' + shooter
+                 + '<path d="M115 117H147M124 125H150M130 109H148" stroke="#fff0ad" stroke-width="3"/>'
+                 + robot(172, 115, 1.05))
+    elif mode == 'Säsong':
+        confetti = ''.join(f'<rect x="{x}" y="{y}" width="{3 if i % 2 else 6}" height="3" fill="{color}"/>'
+                           for i, (x, y, color) in enumerate([
+                               (20,20,'#edc75a'),(58,34,'#a687eb'),(90,12,'#ef6671'),(123,24,'#e6d4ff'),
+                               (176,16,'#edc75a'),(212,30,'#97e4b9'),(270,15,'#ef6671'),(298,39,'#edc75a'),
+                               (13,87,'#a687eb'),(38,60,'#97e4b9'),(93,70,'#edc75a'),(225,75,'#e6d4ff'),
+                               (285,91,'#97e4b9'),(36,124,'#ef6671'),(109,111,'#e6d4ff'),(232,128,'#edc75a')]))
+        scene = ('<path d="M0 133H320V180H0z" fill="#302451"/>'
+                 '<path d="M28 26V83M276 25V81" stroke="#c4b7dd" stroke-width="2"/>'
+                 '<path d="M29 26h37v21H29z M277 25h29v21h-29z" fill="#a687eb"/>'
+                 '<path d="M29 26h9v21h-9z M277 25h8v21h-8z" fill="#faf5ff"/>'
+                 '<path d="M108 144h104v36H108z" fill="#7651bc"/>'
+                 '<path d="M80 158h28v22H80z M212 158h28v22h-28z" fill="#493363"/>'
+                 '<path d="M152 155h16v15h-16z" fill="#e6d4ff"/>'
+                 '<path d="M131 50h58v25h-8v15h-12v20h12v10h-42v-10h12V90h-12V75h-8z" fill="#edc75a"/>'
+                 '<path d="M131 56h-16v22h21 M189 56h16v22h-21" fill="none" stroke="#bc8127" stroke-width="6"/>'
+                 '<path d="M139 57h8v20h-8z" fill="#fff3a6"/>'
+                 + sprite(team, 30, 73, 'win') + sprite(team, 229, 73, 'win') + confetti)
+    else:
+        scene = ('<path d="M0 143H320V180H0z" fill="#302451"/>'
+                 '<path d="M116 26h186v111H116z" fill="#211833" stroke="#9673c0" stroke-width="3"/>'
+                 '<path d="M127 119H289M127 43V119" fill="none" stroke="#c4b7dd" stroke-width="2"/>'
+                 '<path d="M140 98h22v19h-22z M175 82h22v35h-22z M210 69h22v48h-22z M245 47h22v70h-22z" fill="#a687eb"/>'
+                 '<path d="M140 98h22M175 82h22M210 69h22M245 47h22" stroke="#e6d4ff" stroke-width="3"/>'
+                 '<path d="M140 72L186 57 221 77 264 34" fill="none" stroke="#97e4b9" stroke-width="3"/>'
+                 '<path d="M28 125h66v29H28z" fill="#7651bc"/>'
+                 '<path d="M39 152v17M83 152v17" stroke="#9673c0" stroke-width="9"/>'
+                 '<path d="M34 166h16M77 166h17" stroke="#e6d4ff" stroke-width="6"/>'
+                 '<path d="M89 131l13-13h17" fill="none" stroke="#b99aef" stroke-width="6"/>'
+                 '<path d="M34 127l-11 12h-7" fill="none" stroke="#b99aef" stroke-width="6"/>'
+                 '<g transform="translate(62 98)">' + robot(0, 0, 2) + '</g>'
+                 '<path d="M104 153h181v7H104z M115 160v17M275 160v17" fill="none" stroke="#786098" stroke-width="5"/>'
+                 '<path d="M139 137h24v12h-24z M179 137h17v12h-17z M212 137h38v12h-38z" fill="#edc75a"/>'
+                 '<path d="M270 71h23v23h-23z M270 82h23M281 71v23" fill="none" stroke="#e6d4ff" stroke-width="1"/>')
+    svg = ('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="180" viewBox="0 0 320 180" '
+           'shape-rendering="crispEdges">' + backdrop + scene + '</svg>')
+    return 'data:image/svg+xml;base64,' + b64encode(svg.encode('utf-8')).decode('ascii')
+
+
+def main_menu():
+    st.header('Välj spelläge')
+    st.caption('Välj din nästa utmaning. Pågående spel finns kvar när du byter läge.')
+    kick = st.session_state.get('kick')
+    season = st.session_state.get('season')
+    kick_status = 'Välj 10, 20 eller 30 matcher'
+    if kick:
+        kick_status = (f'Fortsätt · {kick["team"]} · {kick["matches"]} av {kick["limit"]} matcher'
+                       if kick['matches'] < kick['limit'] else f'Visa resultat · {kick["team"]}')
+    season_status = 'Premier League 2017/18 · 38 matcher'
+    if season:
+        played = season['table'][season['team']]['P']
+        season_status = (f'Fortsätt · {season["team"]} · {played} av 38 matcher'
+                         if played < 38 else f'Visa säsongsresultat · {season["team"]}')
+    modes = [
+        ('Kick-off', 'kick', 'Välj motståndare och samla poäng.', kick_status, kick['team'] if kick else 'Arsenal'),
+        ('Säsong', 'season', 'Ta ditt lag genom en hel ligasäsong.', season_status, season['team'] if season else 'Arsenal'),
+        ('Statistik', 'stats', 'Utforska alla spelares simuleringar.', 'Lagstatistik · matchhistorik · säsongsresultat', 'Arsenal')]
+    for column, (title, key, description, status, team) in zip(st.columns(3, gap='medium'), modes):
+        with column, st.container(key=f'mode_card_{key}'):
+            label = f'![]({menu_illustration(title, team)})\n\n**{title}**\n\n{description}\n\n{status}'
+            if st.button(label, key=f'choose_mode_{key}', use_container_width=True):
+                st.session_state.game_mode = title
+                st.session_state.app_view = 'game'
+                st.rerun()
+
+
+if st.session_state.get('app_view', 'game') == 'menu':
+    main_menu()
+    st.stop()
+
+
 current_model_version = model_version(ROOT)
 shared_store = shared_statistics_connection()
 sync_shared_statistics(shared_store)
@@ -851,7 +1051,13 @@ if st.session_state.get('statistics_error'):
         st.rerun()
 
 mode_icons = {'Kick-off': 'sports_soccer', 'Säsong': 'emoji_events', 'Statistik': 'bar_chart'}
-mode=st.segmented_control('Spelläge', ['Kick-off','Säsong','Statistik'], default='Kick-off', required=True,
+menu_column, navigation_column = st.columns([1, 3], vertical_alignment='center')
+if menu_column.button('Huvudmeny', icon=':material/home:', use_container_width=True):
+    st.session_state.app_view = 'menu'
+    st.rerun()
+if 'game_mode' not in st.session_state:
+    st.session_state.game_mode = 'Kick-off'
+mode=navigation_column.segmented_control('Spelläge', ['Kick-off','Säsong','Statistik'], required=True,
                           format_func=lambda value: f':material/{mode_icons[value]}: {value}',
                           key='game_mode', label_visibility='collapsed')
 st.divider()
@@ -901,6 +1107,7 @@ if mode=='Kick-off':
             st.write(f"**{x['team']} · {x['limit']} matcher**")
             st.metric('Slutpoäng', f"{x['points']:+,}")
             st.write(results_text(x['wins'], x['draws'], x['matches']-x['wins']-x['draws']))
+            st.markdown(kick_round_track(x['limit'], x['history']), unsafe_allow_html=True)
             with st.expander('Alla matcher i omgången'):
                 render_table(pd.DataFrame(x['history']), 'kick_round_history')
             if st.button('Ny omgång', type='primary', use_container_width=True):
@@ -909,33 +1116,58 @@ if mode=='Kick-off':
                 st.rerun()
         else:
             own = x['team']
-            st.markdown(f'<div class="season-summary"><span class="season-details"><strong>{escape(own)}</strong>'
-                        f'<span>Låst lag · Match {x["matches"]+1} av {x["limit"]}</span></span>'
-                        f'<span class="streak">{x["points"]:+d} poäng</span></div>', unsafe_allow_html=True)
-            st.progress(x['matches']/x['limit'], text=f"Spelade matcher: {x['matches']} / {x['limit']}")
-            opponent_column, venue_column = st.columns([1.4, 1], vertical_alignment='bottom')
-            opp=opponent_column.selectbox('Motståndare',[t for t in teams if t!=own],format_func=team_label, key='kick_opponent')
-            venue=venue_column.segmented_control('Spelplats',['Hemma','Borta'], default='Hemma', required=True,
-                                       format_func=lambda value: f':material/{"home" if value == "Hemma" else "flight_takeoff"}: {value}',
-                                       key='kick_venue')
-            h,a=(own,opp) if venue=='Hemma' else (opp,own)
             states=load_history() if (ROOT/'history_last5.csv').exists() else starting_states()
             if not (ROOT/'history_last5.csv').exists():
                 for t,r in initial.iterrows():
                     states[t]['form']=[0]*4+[int(r.Form5)]
                     states[t]['goals']=[0]*4+[int(r.GoalDiff5)]
+            if x.get('challenge_match') != x['matches']:
+                x['challenges'] = kick_challenges(own, states, x['history'])
+                x['challenge_match'] = x['matches']
+                suggestion = x['challenges'][x['matches'] % len(x['challenges'])]
+                x['suggestion'] = (suggestion['opponent'], suggestion['venue'])
+                x['selected_match'] = x['suggestion']
+                st.session_state.kick_opponent, st.session_state.kick_venue = x['suggestion']
+            selected_opponent, selected_venue = x['selected_match']
+            if 'kick_opponent' not in st.session_state:
+                st.session_state.kick_opponent = selected_opponent
+            if 'kick_venue' not in st.session_state:
+                st.session_state.kick_venue = selected_venue
+            st.markdown(f'<div class="season-summary kick-summary"><span class="season-details"><strong>{escape(own)}</strong>'
+                        f'<span>Låst lag · Match {x["matches"]+1} av {x["limit"]}</span></span>'
+                        f'<span class="streak">{x["points"]:+d} poäng</span></div>', unsafe_allow_html=True)
+            st.markdown(kick_round_track(x['limit'], x['history']), unsafe_allow_html=True)
+            st.caption('Välj din utmaning')
+            with st.container(key='kick_choices'):
+                for index, (column, challenge) in enumerate(zip(st.columns(3, gap='small'), x['challenges'])):
+                    is_selected = (challenge['opponent'], challenge['venue']) == (
+                        st.session_state.kick_opponent, st.session_state.kick_venue)
+                    label = (f'**{challenge["title"]}**'
+                             + f'\n\n{challenge["opponent"]} · {challenge["pw"]:.0%}')
+                    column.button(label, key=f'kick_challenge_{index}', width='stretch',
+                                  type='primary' if is_selected else 'secondary',
+                                  on_click=choose_kick_challenge, args=(challenge['opponent'], challenge['venue']))
+            with st.expander('Välj motståndare och spelplats själv'):
+                opponent_column, venue_column = st.columns([1.4, 1], vertical_alignment='bottom')
+                opp=opponent_column.selectbox('Motståndare',[t for t in teams if t!=own],format_func=team_label, key='kick_opponent')
+                venue=venue_column.segmented_control('Spelplats',['Hemma','Borta'], required=True,
+                                       format_func=lambda value: f':material/{"home" if value == "Hemma" else "flight_takeoff"}: {value}',
+                                       key='kick_venue')
+            h,a=(own,opp) if venue=='Hemma' else (opp,own)
+            x['selected_match'] = (opp, venue)
             probs=predict(h,a,states)
             pw=probs['H'] if venue=='Hemma' else probs['A']
             reward=round(100/pw); penalty=round(100*pw)
-            play_match = st.button('Spela match', icon=':material/play_arrow:', type='primary',
-                use_container_width=True, disabled=bool(st.session_state.get('pending_result')))
-            st.markdown(f'<div class="match-note scoring-note"><span class="score-win"><small>VINST</small><strong>+{reward}</strong></span>'
-                        f'<span class="score-draw"><small>OAVGJORT</small><strong>0</strong></span>'
-                        f'<span class="score-loss"><small>FÖRLUST</small><strong>−{penalty}</strong></span></div>',
-                        unsafe_allow_html=True)
             with st.container(key='kick_match_card'):
                 match_card(h,a,'VS','KICK-OFF · DIN MATCH',details={h: kickoff_details(h), a: kickoff_details(a)})
-            probability_cards(h,a,probs,decimals=1)
+                st.markdown('<div class="kick-forecast">' + ''.join(
+                    f'<div><span>{label}</span><strong>{chance:.1%}</strong><small>{points}</small></div>'
+                    for label, chance, points in [('Vinst', pw, f'+{reward} poäng'),
+                        ('Oavgjort', probs['D'], '0 poäng'),
+                        ('Förlust', probs['A'] if venue == 'Hemma' else probs['H'], f'−{penalty} poäng')]
+                ) + '</div>', unsafe_allow_html=True)
+                play_match = st.button('Spela match', icon=':material/play_arrow:', type='primary',
+                    use_container_width=True, disabled=bool(st.session_state.get('pending_result')))
             if play_match:
                 result=str(np.random.choice(list(model.classes_),p=[probs[k] for k in model.classes_]))
                 won=(result=='H' and venue=='Hemma') or (result=='A' and venue=='Borta')
@@ -943,6 +1175,9 @@ if mode=='Kick-off':
                 x['matches']+=1; x['wins']+=int(won); x['draws']+=int(result=='D'); x['points']+=delta
                 x['last']=(result,delta,won)
                 outcome_label = 'Vinst' if won else 'Oavgjort' if result == 'D' else 'Förlust'
+                reaction = kick_reaction(own, h, a, result, delta, x['points'], pw,
+                                         probs['A'] if venue == 'Hemma' else probs['H'], x['history'])
+                x['last_reaction'] = reaction
                 x['history'].append({'Match': x['matches'], 'Hemma': h, 'Borta': a,
                                      'Utfall': outcome_label, 'Poäng': delta, 'Totalpoäng': x['points']})
                 if shared_store is not None:
@@ -955,11 +1190,13 @@ if mode=='Kick-off':
                             match_ids=list(x['event_ids'])))
                 st.session_state['pending_result'] = dict(mode='kick', home=h, away=a, outcome=result,
                     result=outcome_label, delta=delta, points=x['points'], match_number=x['matches'],
-                    limit=x['limit'], finished=x['matches'] == x['limit'])
+                    limit=x['limit'], finished=x['matches'] == x['limit'], reaction=reaction)
                 st.rerun()
             if x['last']:
                 result,delta,won=x['last']
                 (st.success if won else st.warning if result=='D' else st.error)(f"{'Vinst' if won else 'Oavgjort' if result=='D' else 'Förlust'} · {delta:+d} poäng")
+                if x.get('last_reaction'):
+                    st.caption(x['last_reaction'])
     with right:
         with st.container(key='kick_highscores'):
             st.subheader(':material/emoji_events: Highscore')
@@ -984,8 +1221,8 @@ if mode=='Kick-off':
                 st.caption('Endast avslutade omgångar registreras. Din omgång måste ha spelats med databasanslutning från första matchen.')
         st.subheader('Din omgång')
         if x is not None:
-            st.metric('Totalpoäng',f"{x['points']:+,}")
-            b1,b2=st.columns(2); b1.metric('Matcher', f"{x['matches']} / {x['limit']}"); b2.metric('Vinster',x['wins'])
+            st.markdown(f'<div class="kick-round-summary"><div><span>Spelade</span><strong>{x["matches"]} / {x["limit"]}</strong></div>'
+                        f'<div><span>V / O / F</span><strong>{x["wins"]} / {x["draws"]} / {x["matches"]-x["wins"]-x["draws"]}</strong></div></div>', unsafe_allow_html=True)
             if x['matches'] < x['limit']:
                 with st.expander('Avsluta omgången i förtid'):
                     st.caption('Omgångens totalpoäng nollställs. Redan sparade matcher finns kvar i den gemensamma statistiken.')
