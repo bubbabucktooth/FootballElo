@@ -314,6 +314,35 @@ def dialog_action(label, key, on_click=None):
         return st.button(label, type='primary', use_container_width=True, key=key, on_click=on_click)
 
 
+def kick_tip_result(home, away, tip, probabilities, outcome):
+    """Optional duel against the favourite outcome, using H/D/A tie priority."""
+    if tip is None:
+        return None
+    model_tip = max(('H', 'D', 'A'), key=lambda value: probabilities[value])
+    user_correct, model_correct = tip == outcome, model_tip == outcome
+    if user_correct and model_correct:
+        reaction = 'Ni fick båda rätt.'
+    elif user_correct:
+        reaction = ('Du prickade skrällen!' if probabilities[tip] < probabilities[model_tip]
+                    else 'Du fick rätt — modellen missade.')
+    elif model_correct:
+        reaction = 'Modellen fick rätt den här gången.'
+    else:
+        reaction = 'Ingen av er prickade utfallet.'
+    return dict(home=home, away=away, tip=tip, model_tip=model_tip, outcome=outcome,
+                user_correct=user_correct, model_correct=model_correct, reaction=reaction)
+
+
+def render_kick_duel(tips):
+    if not tips:
+        return
+    user = sum(t['user_correct'] for t in tips)
+    model_score = sum(t['model_correct'] for t in tips)
+    st.markdown('<div class="kick-duel"><span>Din känsla mot modellen</span>'
+                f'<strong>Du {user} rätt <span>·</span> Modellen {model_score} rätt</strong>'
+                f'<small>{len(tips)} tippade matcher · separat från poängen</small></div>', unsafe_allow_html=True)
+
+
 def show_match_result(result):
     dialog_start('Matchresultat')
     tone = {'Vinst': 'result-win', 'Oavgjort': 'result-draw', 'Förlust': 'result-loss'}[result['result']]
@@ -326,6 +355,14 @@ def show_match_result(result):
                    f'{winner} vann' if winner else 'Matchen slutade oavgjort', winner=winner, tone=tone, own_team=own)
         st.write(result.get('reaction') or {'Vinst': 'Segern är din! Poängen är inne.', 'Oavgjort': 'Delad pott. Redo för ett nytt försök?',
                                            'Förlust': 'Motståndaren vann den här gången. Ladda om!'}[result['result']])
+        prediction = result.get('prediction')
+        if prediction:
+            labels = {'H': prediction['home'], 'D': 'Oavgjort', 'A': prediction['away']}
+            st.markdown('<div class="kick-tip-result"><strong>' + escape(prediction['reaction']) + '</strong>'
+                        '<div class="kick-tip-comparison">' + ''.join(
+                            f'<div><span>{label}</span><strong>{escape(labels[prediction[field]])}</strong></div>'
+                            for label, field in [('Ditt tips', 'tip'), ('Modellens favorit', 'model_tip'), ('Utfallet', 'outcome')]
+                        ) + '</div></div>', unsafe_allow_html=True)
         st.markdown('<div class="result-grid kick-grid result-reveal">'
                     f'<div class="result-stat"><strong>{result["delta"]:+d}</strong><small>Poäng den här matchen</small></div>'
                     f'<div class="result-stat"><strong>{result["points"]:+d}</strong><small>Totalpoäng</small></div></div>',
@@ -1170,6 +1207,14 @@ if mode=='Kick-off':
             probs=predict(h,a,states)
             pw=probs['H'] if venue=='Hemma' else probs['A']
             reward=round(100/pw); penalty=round(100*pw)
+            with st.container(key='kick_tip_choice'):
+                st.markdown('**Vem tror du vinner?**')
+                st.caption('Frivilligt matchtips · poäng och highscore påverkas inte.')
+                tip_labels = {'H': h, 'D': 'Oavgjort', 'A': a}
+                tip = st.segmented_control('Ditt frivilliga matchtips', ['H', 'D', 'A'],
+                    format_func=tip_labels.get, label_visibility='collapsed',
+                    key=f'kick_tip_{x.get("run_id", own)}_{x["matches"]}_{h}_{a}',
+                    disabled=bool(st.session_state.get('pending_result')))
             with st.container(key='kick_match_card'):
                 match_card(h,a,'VS','KICK-OFF · DIN MATCH',details={h: kickoff_details(h), a: kickoff_details(a)}, own_team=own)
                 st.markdown('<div class="kick-forecast">' + ''.join(
@@ -1182,6 +1227,9 @@ if mode=='Kick-off':
                     use_container_width=True, disabled=bool(st.session_state.get('pending_result')))
             if play_match:
                 result=str(np.random.choice(list(model.classes_),p=[probs[k] for k in model.classes_]))
+                prediction = kick_tip_result(h, a, tip, probs, result)
+                if prediction:
+                    x.setdefault('tips', []).append(prediction)
                 won=(result=='H' and venue=='Hemma') or (result=='A' and venue=='Borta')
                 delta=reward if won else 0 if result=='D' else -penalty
                 x['matches']+=1; x['wins']+=int(won); x['draws']+=int(result=='D'); x['points']+=delta
@@ -1202,7 +1250,7 @@ if mode=='Kick-off':
                             match_ids=list(x['event_ids'])))
                 st.session_state['pending_result'] = dict(mode='kick', team=own, home=h, away=a, outcome=result,
                     result=outcome_label, delta=delta, points=x['points'], match_number=x['matches'],
-                    limit=x['limit'], finished=x['matches'] == x['limit'], reaction=reaction)
+                    limit=x['limit'], finished=x['matches'] == x['limit'], reaction=reaction, prediction=prediction)
                 st.rerun()
             if x['last']:
                 result,delta,won=x['last']
@@ -1235,6 +1283,9 @@ if mode=='Kick-off':
                 st.caption('Endast avslutade omgångar registreras. Din omgång måste ha spelats med databasanslutning från första matchen.')
         st.subheader('Din omgång')
         if x is not None:
+            render_kick_duel(x.get('tips', []))
+            if x.get('tips'):
+                st.caption('Bara matcher du tippat ingår. Duellen gäller simulerade utfall från modellen, inte verkliga matcher.')
             st.markdown(f'<div class="kick-round-summary"><div><span>Spelade</span><strong>{x["matches"]} / {x["limit"]}</strong></div>'
                         f'<div><span>V / O / F</span><strong>{x["wins"]} / {x["draws"]} / {x["matches"]-x["wins"]-x["draws"]}</strong></div></div>', unsafe_allow_html=True)
             if x['matches'] < x['limit']:

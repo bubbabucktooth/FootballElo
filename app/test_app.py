@@ -21,7 +21,7 @@ def simulation_namespace():
              'season_results', 'winning_streak', 'league_position', 'result_reaction',
              'play_next_match', 'match_context', 'title_status', 'relegation_notice', 'team_badge',
              'actual_snapshot', 'points_difference', 'season_comparison', 'simulate_batch', 'results_text',
-             'kick_challenges', 'kick_reaction', 'kick_round_track'}
+             'kick_challenges', 'kick_reaction', 'kick_round_track', 'kick_tip_result'}
     functions = ast.Module(body=[node for node in tree.body
         if (isinstance(node, ast.FunctionDef) and node.name in names) or
            (isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == 'TEAM_KITS' for t in node.targets))], type_ignores=[])
@@ -34,6 +34,25 @@ def simulation_namespace():
 
 
 class SeasonTests(unittest.TestCase):
+    def test_kick_tip_comparison_and_probability_ties(self):
+        compare = self.scope['kick_tip_result']
+        probabilities = {'H': .6, 'D': .25, 'A': .15}
+        self.assertIsNone(compare('Arsenal', 'Chelsea', None, probabilities, 'H'))
+        both = compare('Arsenal', 'Chelsea', 'H', probabilities, 'H')
+        self.assertTrue(both['user_correct'] and both['model_correct'])
+        surprise = compare('Arsenal', 'Chelsea', 'A', probabilities, 'A')
+        self.assertTrue(surprise['user_correct'])
+        self.assertFalse(surprise['model_correct'])
+        self.assertIn('skrällen', surprise['reaction'])
+        model = compare('Arsenal', 'Chelsea', 'A', probabilities, 'H')
+        self.assertFalse(model['user_correct'])
+        self.assertTrue(model['model_correct'])
+        neither = compare('Arsenal', 'Chelsea', 'A', probabilities, 'D')
+        self.assertFalse(neither['user_correct'] or neither['model_correct'])
+        tied = compare('Arsenal', 'Chelsea', 'D', {'A': .2, 'D': .4, 'H': .4}, 'D')
+        self.assertEqual(tied['model_tip'], 'H')
+        self.assertNotIn('skrällen', tied['reaction'])
+
     def test_kick_challenges_use_distinct_opponents_and_honest_risk_labels(self):
         scope = self.scope
         states = {team: {} for team in ('Us', 'Easy', 'Even', 'Hard', 'Last')}
@@ -262,6 +281,40 @@ class SeasonTests(unittest.TestCase):
 
 
 class InterfaceTests(unittest.TestCase):
+    def test_optional_kick_tip_resets_and_is_counted_once_without_affecting_points(self):
+        app = AppTest.from_file(str(APP), default_timeout=60)
+        app.session_state['app_started'] = True
+        app.run()
+        next(b for b in app.button if b.key == 'choose_round_10').click().run()
+        next(b for b in app.button if b.label == 'Starta omgång').click().run()
+        tip_widget = lambda: next(g for g in app.get('button_group') if str(g.key).startswith('kick_tip_'))
+        self.assertIsNone(tip_widget().value)
+        tip_widget().set_value('H').run()
+        choice = dict(app.session_state['kick']['challenges'][2])
+        next(b for b in app.button if b.key == 'kick_challenge_2').click().run()
+        self.assertIsNone(tip_widget().value)
+        own_win = 'H' if choice['venue'] == 'Hemma' else 'A'
+        tip_widget().set_value(own_win).run()
+        with patch('numpy.random.choice', return_value=own_win):
+            next(b for b in app.button if b.label == 'Spela match').click().run()
+        self.assertFalse(app.exception)
+        self.assertEqual(app.session_state['kick']['points'], choice['reward'])
+        self.assertEqual(len(app.session_state['kick']['tips']), 1)
+        prediction = app.session_state['pending_result']['prediction']
+        self.assertEqual(prediction['tip'], own_win)
+        self.assertTrue(prediction['user_correct'])
+        self.assertTrue(any('kick-tip-comparison' in m.value for m in app.markdown))
+        next(b for b in app.button if b.key == 'close_result').click().run()
+        app.run()
+        self.assertEqual(len(app.session_state['kick']['tips']), 1)
+        self.assertIsNone(tip_widget().value)
+        with patch('numpy.random.choice', return_value='D'):
+            next(b for b in app.button if b.label == 'Spela match').click().run()
+        self.assertFalse(app.exception)
+        self.assertIsNone(app.session_state['pending_result']['prediction'])
+        self.assertEqual(len(app.session_state['kick']['tips']), 1)
+        self.assertEqual(app.session_state['kick']['points'], choice['reward'])
+
     def test_kick_choice_updates_preview_and_next_match_changes_suggestions(self):
         app = AppTest.from_file(str(APP), default_timeout=60)
         app.session_state['app_started'] = True
